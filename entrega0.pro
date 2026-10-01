@@ -14,7 +14,9 @@ SOURCES += \
 
 HEADERS += \
     areavisualizacao.h \
+    displayfile.h \
     editorwindow.h \
+    objeto.h \
     painelpropriedades.h
 
 # Default rules for deployment.
