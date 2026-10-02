@@ -32,10 +32,11 @@ void EditorWindow::carregarCenaTeste() {
     Objeto r1("Eixo", TipoObjeto::RETA, {{50, 200}, {300, 200}});
     displayFile.adicionarObjeto(r1);
 
-    Objeto pol1("Triangulo", TipoObjeto::POLIGONO, {
-                                                       {200, 300}, {300, 450}, {100, 450}
-                                                   });
+    Objeto pol1("Triangulo", TipoObjeto::POLIGONO, {{200, 300}, {300, 450}, {100, 450}});
     displayFile.adicionarObjeto(pol1);
+
+    Objeto pol2("Quadrado", TipoObjeto::POLIGONO, {{200, 500}, {400, 500}, {400, 700}, {200, 700}});
+    displayFile.adicionarObjeto(pol2);
 }
 
 EditorWindow::~EditorWindow() = default;
