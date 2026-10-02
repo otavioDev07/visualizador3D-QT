@@ -29,7 +29,7 @@ void EditorWindow::carregarCenaTeste() {
     Objeto p1("Meus_Pontos", TipoObjeto::PONTO, {{100, 100}, {150, 100}});
     displayFile.adicionarObjeto(p1);
 
-    Objeto r1("Eixo", TipoObjeto::RETA, {{50, 200}, {300, 200}});
+    Objeto r1("Reta", TipoObjeto::RETA, {{50, 200}, {300, 200}});
     displayFile.adicionarObjeto(r1);
 
     Objeto pol1("Triangulo", TipoObjeto::POLIGONO, {{200, 300}, {300, 450}, {100, 450}});
