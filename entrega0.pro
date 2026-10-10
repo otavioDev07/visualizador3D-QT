@@ -16,6 +16,7 @@ HEADERS += \
     areavisualizacao.h \
     displayfile.h \
     editorwindow.h \
+    matriz.h \
     objeto.h \
     painelpropriedades.h
 
