@@ -18,6 +18,15 @@ public:
     const std::vector<Objeto>& obterObjetos() const {
         return objetos;
     }
+
+    size_t quantidade() const {
+        return objetos.size();
+    }
+
+    Objeto* obterObjeto(size_t indice) {
+        if (indice >= objetos.size()) return nullptr;
+        return &objetos[indice];
+    }
 };
 
 #endif // DISPLAYFILE_H

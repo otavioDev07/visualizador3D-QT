@@ -40,4 +40,15 @@ void AreaVisualizacao::paintEvent(QPaintEvent *event) {
             painter.drawPolygon(poli);
         }
     }
+    const auto& objs = displayFile->obterObjetos();
+    if (indiceSelecionado >= 0 && indiceSelecionado < static_cast<int>(objs.size())) {
+        QPolygonF poly;
+        for (const auto& pt : objs[indiceSelecionado].pontos)
+            poly << pt;
+        if (!poly.isEmpty()) {
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(Qt::darkGreen, 1, Qt::DashLine));
+            painter.drawRect(poly.boundingRect().adjusted(-8, -8, 8, 8));
+        }
+    }
 }

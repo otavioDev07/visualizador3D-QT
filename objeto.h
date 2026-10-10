@@ -4,6 +4,7 @@
 #include <QString>
 #include <QPointF>
 #include <vector>
+#include "matriz.h"
 
 enum class TipoObjeto {
     PONTO,
@@ -18,6 +19,26 @@ struct Objeto {
 
     Objeto(QString n, TipoObjeto t, std::vector<QPointF> p)
         : nome(n), tipo(t), pontos(p) {}
+
+
+    QPointF centroide() const {
+        if (pontos.empty())
+            return QPointF(0.0, 0.0);
+
+        double somaX = 0.0;
+        double somaY = 0.0;
+        for (const auto& p : pontos) {
+            somaX += p.x();
+            somaY += p.y();
+        }
+        const double n = static_cast<double>(pontos.size());
+        return QPointF(somaX / n, somaY / n);
+    }
+
+    void transformar(const Matriz& m) {
+        for (auto& p : pontos)
+            p = m * p;
+    }
 };
 
 #endif // OBJETO_H

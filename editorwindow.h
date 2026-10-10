@@ -3,6 +3,10 @@
 
 #include <QMainWindow>
 #include "displayfile.h"
+#include "matriz.h"
+
+class AreaVisualizacao;
+class PainelPropriedades;
 
 class EditorWindow : public QMainWindow
 {
@@ -10,6 +14,15 @@ class EditorWindow : public QMainWindow
 
 private:
     DisplayFile displayFile;
+    AreaVisualizacao *areaVisualizacao = nullptr;
+    PainelPropriedades *painelPropriedades = nullptr;
+    int indiceSelecionado = -1;
+
+    bool modoAcumular = false;
+    Matriz matrizAcumulada;
+    void atualizarTextoMatriz();
+    void executar(const Matriz &m);
+
     void carregarCenaTeste();
 
 public:
