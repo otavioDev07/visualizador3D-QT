@@ -26,11 +26,30 @@ private:
     QRadioButton *radioPonto = nullptr;
     QLabel *labelMatriz = nullptr;
 
+    // Window
+    QDoubleSpinBox *spinWcx = nullptr;
+    QDoubleSpinBox *spinWcy = nullptr;
+    QDoubleSpinBox *spinWLarg = nullptr;
+    QDoubleSpinBox *spinWAlt = nullptr;
+    QDoubleSpinBox *spinWAngulo = nullptr;
+    // Viewport
+    QDoubleSpinBox *spinVxmin = nullptr;
+    QDoubleSpinBox *spinVymin = nullptr;
+    QDoubleSpinBox *spinVxmax = nullptr;
+    QDoubleSpinBox *spinVymax = nullptr;
+
+    void emitirWindow();
+    void emitirViewport();
+
 public:
     explicit PainelPropriedades(QWidget *parent = nullptr);
 
     void definirObjetos(const QStringList &nomes);
     void mostrarMatriz(const QString &texto);
+
+    // Preenchem os campos sem disparar sinais (usado na inicialização)
+    void definirWindow(double cx, double cy, double largura, double altura, double angulo);
+    void definirViewport(double xmin, double ymin, double xmax, double ymax);
 
 signals:
     void objetoSelecionado(int indice);
@@ -40,6 +59,8 @@ signals:
     void modoAcumularAlterado(bool ativo);
     void aplicarComposicaoSolicitada();
     void limparComposicaoSolicitada();
+    void windowAlterada(double cx, double cy, double largura, double altura, double angulo);
+    void viewportAlterada(double xmin, double ymin, double xmax, double ymax);
 
 };
 

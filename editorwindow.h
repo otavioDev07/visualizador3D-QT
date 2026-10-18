@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include "displayfile.h"
 #include "matriz.h"
+#include "janela.h"
+#include "viewport.h"
 
 class AreaVisualizacao;
 class PainelPropriedades;
@@ -17,6 +19,10 @@ private:
     AreaVisualizacao *areaVisualizacao = nullptr;
     PainelPropriedades *painelPropriedades = nullptr;
     int indiceSelecionado = -1;
+
+    Janela janela;          // window do mundo
+    Viewport viewport;      // viewport em pixels
+    void atualizarSCN();    // recalcula o SCN de todos os objetos e redesenha
 
     bool modoAcumular = false;
     Matriz matrizAcumulada;
