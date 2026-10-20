@@ -53,6 +53,13 @@ EditorWindow::EditorWindow(QWidget *parent)
                 areaVisualizacao->setIndiceSelecionado(indice);
             });
 
+    // Centroide "efetivo" do objeto: no modo Acumular as transformações ainda não foram
+    // aplicadas aos pontos, então o centroide precisa passar pela matriz acumulada.
+    auto centroideEfetivo = [this](const Objeto *obj) {
+        const QPointF c = obj->centroide();
+        return modoAcumular ? matrizAcumulada * c : c;
+    };
+
     // Translação do objeto selecionado
     connect(painelPropriedades, &PainelPropriedades::translacaoSolicitada,
             this, [this](double dx, double dy) {
@@ -61,21 +68,21 @@ EditorWindow::EditorWindow(QWidget *parent)
 
     // Escala do objeto selecionado, em torno do seu centroide
     connect(painelPropriedades, &PainelPropriedades::escalaSolicitada,
-            this, [this](double sx, double sy) {
+            this, [this, centroideEfetivo](double sx, double sy) {
                 if (indiceSelecionado < 0) return;
                 Objeto *obj = displayFile.obterObjeto(static_cast<size_t>(indiceSelecionado));
                 if (!obj) return;
-                executar(Matriz::escalaEmTorno(sx, sy, obj->centroide()));
+                executar(Matriz::escalaEmTorno(sx, sy, centroideEfetivo(obj)));
             });
 
 
     // Rotação do objeto selecionado
     connect(painelPropriedades, &PainelPropriedades::rotacaoSolicitada,
-            this, [this](double graus, bool usarCentroide, double px, double py) {
+            this, [this, centroideEfetivo](double graus, bool usarCentroide, double px, double py) {
                 if (indiceSelecionado < 0) return;
                 Objeto *obj = displayFile.obterObjeto(static_cast<size_t>(indiceSelecionado));
                 if (!obj) return;
-                QPointF centro = usarCentroide ? obj->centroide() : QPointF(px, py);
+                QPointF centro = usarCentroide ? centroideEfetivo(obj) : QPointF(px, py);
                 executar(Matriz::rotacaoEmTorno(graus, centro));   // y para cima: positivo = anti-horário
             });
 
