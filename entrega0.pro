@@ -14,6 +14,8 @@ SOURCES += \
 
 HEADERS += \
     areavisualizacao.h \
+    janela.h \
+    viewport.h \
     displayfile.h \
     editorwindow.h \
     matriz.h \

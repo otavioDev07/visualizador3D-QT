@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QRadioButton>
 #include <QCheckBox>
+#include <QHBoxLayout>
 
 PainelPropriedades::PainelPropriedades(QWidget *parent)
     : QWidget(parent)
@@ -17,6 +18,7 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     // --- Lista de objetos ---
     layout->addWidget(new QLabel("Objetos", this));
     listaObjetos = new QListWidget(this);
+    listaObjetos->setMinimumHeight(100);
     layout->addWidget(listaObjetos);
 
     connect(listaObjetos, &QListWidget::currentRowChanged,
@@ -111,6 +113,77 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
                                spinPx->value(), spinPy->value());
     });
 
+    // --- Window ---
+    QGroupBox *grupoWin = new QGroupBox("Window (mundo)", this);
+    QFormLayout *formWin = new QFormLayout(grupoWin);
+
+    spinWcx = new QDoubleSpinBox(grupoWin);
+    spinWcy = new QDoubleSpinBox(grupoWin);
+    spinWLarg = new QDoubleSpinBox(grupoWin);
+    spinWAlt = new QDoubleSpinBox(grupoWin);
+    spinWAngulo = new QDoubleSpinBox(grupoWin);
+    for (QDoubleSpinBox *s : {spinWcx, spinWcy}) {
+        s->setRange(-100000.0, 100000.0);
+        s->setDecimals(1);
+        s->setSingleStep(10.0);
+    }
+    for (QDoubleSpinBox *s : {spinWLarg, spinWAlt}) {
+        s->setRange(1.0, 100000.0);     // largura/altura nunca podem ser 0 (divisão no SCN)
+        s->setDecimals(1);
+        s->setSingleStep(10.0);
+    }
+    spinWAngulo->setRange(-360.0, 360.0);
+    spinWAngulo->setDecimals(1);
+    spinWAngulo->setSuffix("°");
+    formWin->addRow("Centro x:", spinWcx);
+    formWin->addRow("Centro y:", spinWcy);
+    formWin->addRow("Largura:", spinWLarg);
+    formWin->addRow("Altura:", spinWAlt);
+    formWin->addRow("Ângulo:", spinWAngulo);
+
+    QPushButton *btnZoomIn = new QPushButton("Zoom +", grupoWin);
+    QPushButton *btnZoomOut = new QPushButton("Zoom -", grupoWin);
+    QHBoxLayout *hZoom = new QHBoxLayout();
+    hZoom->addWidget(btnZoomIn);
+    hZoom->addWidget(btnZoomOut);
+    formWin->addRow(hZoom);
+    layout->addWidget(grupoWin);
+
+    for (QDoubleSpinBox *s : {spinWcx, spinWcy, spinWLarg, spinWAlt, spinWAngulo})
+        connect(s, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this]() { emitirWindow(); });
+
+    // Zoom in = window menor (enxerga menos do mundo, objetos parecem maiores)
+    connect(btnZoomIn, &QPushButton::clicked, this, [this]() {
+        spinWLarg->setValue(spinWLarg->value() / 1.2);
+        spinWAlt->setValue(spinWAlt->value() / 1.2);
+    });
+    connect(btnZoomOut, &QPushButton::clicked, this, [this]() {
+        spinWLarg->setValue(spinWLarg->value() * 1.2);
+        spinWAlt->setValue(spinWAlt->value() * 1.2);
+    });
+
+    // --- Viewport ---
+    QGroupBox *grupoVp = new QGroupBox("Viewport (pixels)", this);
+    QFormLayout *formVp = new QFormLayout(grupoVp);
+
+    spinVxmin = new QDoubleSpinBox(grupoVp);
+    spinVymin = new QDoubleSpinBox(grupoVp);
+    spinVxmax = new QDoubleSpinBox(grupoVp);
+    spinVymax = new QDoubleSpinBox(grupoVp);
+    for (QDoubleSpinBox *s : {spinVxmin, spinVymin, spinVxmax, spinVymax}) {
+        s->setRange(0.0, 10000.0);
+        s->setDecimals(0);
+        s->setSingleStep(10.0);
+    }
+    formVp->addRow("xmin:", spinVxmin);
+    formVp->addRow("ymin:", spinVymin);
+    formVp->addRow("xmax:", spinVxmax);
+    formVp->addRow("ymax:", spinVymax);
+    layout->addWidget(grupoVp);
+
+    for (QDoubleSpinBox *s : {spinVxmin, spinVymin, spinVxmax, spinVymax})
+        connect(s, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this]() { emitirViewport(); });
+
     // --- Composição ---
     QGroupBox *grupoComp = new QGroupBox("Composição de matrizes", this);
     QVBoxLayout *vComp = new QVBoxLayout(grupoComp);
@@ -144,4 +217,39 @@ void PainelPropriedades::definirObjetos(const QStringList &nomes)
 void PainelPropriedades::mostrarMatriz(const QString &texto)
 {
     labelMatriz->setText(texto);
+}
+
+void PainelPropriedades::emitirWindow()
+{
+    emit windowAlterada(spinWcx->value(), spinWcy->value(),
+                        spinWLarg->value(), spinWAlt->value(), spinWAngulo->value());
+}
+
+void PainelPropriedades::emitirViewport()
+{
+    emit viewportAlterada(spinVxmin->value(), spinVymin->value(),
+                          spinVxmax->value(), spinVymax->value());
+}
+
+void PainelPropriedades::definirWindow(double cx, double cy, double largura, double altura, double angulo)
+{
+    const QList<QDoubleSpinBox *> spins = {spinWcx, spinWcy, spinWLarg, spinWAlt, spinWAngulo};
+    for (QDoubleSpinBox *s : spins) s->blockSignals(true);
+    spinWcx->setValue(cx);
+    spinWcy->setValue(cy);
+    spinWLarg->setValue(largura);
+    spinWAlt->setValue(altura);
+    spinWAngulo->setValue(angulo);
+    for (QDoubleSpinBox *s : spins) s->blockSignals(false);
+}
+
+void PainelPropriedades::definirViewport(double xmin, double ymin, double xmax, double ymax)
+{
+    const QList<QDoubleSpinBox *> spins = {spinVxmin, spinVymin, spinVxmax, spinVymax};
+    for (QDoubleSpinBox *s : spins) s->blockSignals(true);
+    spinVxmin->setValue(xmin);
+    spinVymin->setValue(ymin);
+    spinVxmax->setValue(xmax);
+    spinVymax->setValue(ymax);
+    for (QDoubleSpinBox *s : spins) s->blockSignals(false);
 }

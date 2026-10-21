@@ -23,6 +23,11 @@ public:
         return objetos.size();
     }
 
+    void atualizarSCN(const Matriz& scn) {
+        for (auto& obj : objetos)
+            obj.atualizarSCN(scn);
+    }
+
     Objeto* obterObjeto(size_t indice) {
         if (indice >= objetos.size()) return nullptr;
         return &objetos[indice];

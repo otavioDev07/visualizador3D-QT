@@ -3,12 +3,14 @@
 
 #include <QWidget>
 #include "displayfile.h"
+#include "viewport.h"
 
 class AreaVisualizacao : public QWidget
 {
     Q_OBJECT
 private:
     DisplayFile *displayFile = nullptr;    // Ponteiro para a base de dados
+    Viewport viewport;
     int indiceSelecionado = -1;
 
 public:
@@ -22,6 +24,11 @@ public:
         indiceSelecionado = i;
         update();
     }
+    void setViewport(const Viewport &v) {
+        viewport = v;
+        update();
+    }
+    const Viewport &getViewport() const { return viewport; }
 
 protected:
     void paintEvent(QPaintEvent *event) override;
