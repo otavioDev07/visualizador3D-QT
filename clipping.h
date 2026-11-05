@@ -17,10 +17,12 @@ constexpr int DIREITA = 2; //0010
 constexpr int ABAIXO = 4; //0100
 constexpr int ACIMA = 8; //1000
 
+
+//funções "inline" para tentar evitar overhed de chamada de funções
 inline int regionCode(const QPointF& p){
     int codigo = DENTRO; // começa como 0000
 
-    if (p.x() < XMIN) codigo |= ESQUERDA;
+    if (p.x() < XMIN) codigo |= ESQUERDA; // faz OU logico e ja guarda na variável
     else if (p.x() > XMAX) codigo |= DIREITA;
 
     if (p.y() < YMIN) codigo |= ABAIXO;

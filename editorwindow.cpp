@@ -26,22 +26,21 @@ EditorWindow::EditorWindow(QWidget *parent)
     layout->setContentsMargins(0,0,0,0);
     setCentralWidget(centralWidget);
 
-    setWindowTitle("Entrega 03 - Visualizador Geométrico");
+    setWindowTitle("Entrega 04 - Visualizador Geométrico");
     resize(1024, 768);
 
     carregarCenaTeste();
 
     areaVisualizacao->setDisplayFile(&displayFile);
 
-    // Estado inicial de window e viewport (painel e modelo começam iguais)
-    painelPropriedades->definirWindow(janela.centro().x(), janela.centro().y(),
-                                      janela.largura(), janela.altura(), janela.angulo());
+    // Estado inicial da viewport.
     painelPropriedades->definirViewport(viewport.xmin(), viewport.ymin(),
                                         viewport.xmax(), viewport.ymax());
     areaVisualizacao->setViewport(viewport);
     atualizarSCN();   // calcula pela primeira vez as coordenadas normalizadas
 
     QStringList nomes;
+    nomes << "Window";
     for (const auto& obj : displayFile.obterObjetos())
         nomes << obj.nome;
     painelPropriedades->definirObjetos(nomes);
@@ -50,11 +49,8 @@ EditorWindow::EditorWindow(QWidget *parent)
     connect(painelPropriedades, &PainelPropriedades::objetoSelecionado,
             this, [this](int indice) {
                 indiceSelecionado = indice;
-                areaVisualizacao->setIndiceSelecionado(indice);
             });
 
-    // Centroide "efetivo" do objeto: no modo Acumular as transformações ainda não foram
-    // aplicadas aos pontos, então o centroide precisa passar pela matriz acumulada.
     auto centroideEfetivo = [this](const Objeto *obj) {
         const QPointF c = obj->centroide();
         return modoAcumular ? matrizAcumulada * c : c;
@@ -63,6 +59,11 @@ EditorWindow::EditorWindow(QWidget *parent)
     // Translação do objeto selecionado
     connect(painelPropriedades, &PainelPropriedades::translacaoSolicitada,
             this, [this](double dx, double dy) {
+                if (windowSelecionada()) {
+                    displayFile.obterJanela().transladar(dx, dy);
+                    atualizarSCN();
+                    return;
+                }
                 executar(Matriz::translacao(dx, dy));
             });
 
@@ -70,7 +71,12 @@ EditorWindow::EditorWindow(QWidget *parent)
     connect(painelPropriedades, &PainelPropriedades::escalaSolicitada,
             this, [this, centroideEfetivo](double sx, double sy) {
                 if (indiceSelecionado < 0) return;
-                Objeto *obj = displayFile.obterObjeto(static_cast<size_t>(indiceSelecionado));
+                if (windowSelecionada()) {
+                    displayFile.obterJanela().escalar(sx, sy);
+                    atualizarSCN();
+                    return;
+                }
+                Objeto *obj = objetoSelecionado();
                 if (!obj) return;
                 executar(Matriz::escalaEmTorno(sx, sy, centroideEfetivo(obj)));
             });
@@ -80,17 +86,18 @@ EditorWindow::EditorWindow(QWidget *parent)
     connect(painelPropriedades, &PainelPropriedades::rotacaoSolicitada,
             this, [this, centroideEfetivo](double graus, bool usarCentroide, double px, double py) {
                 if (indiceSelecionado < 0) return;
-                Objeto *obj = displayFile.obterObjeto(static_cast<size_t>(indiceSelecionado));
+                if (windowSelecionada()) {
+                    const QPointF pivo = usarCentroide
+                        ? displayFile.obterJanela().centro()
+                        : QPointF(px, py);
+                    displayFile.obterJanela().rotacionar(graus, pivo);
+                    atualizarSCN();
+                    return;
+                }
+                Objeto *obj = objetoSelecionado();
                 if (!obj) return;
                 QPointF centro = usarCentroide ? centroideEfetivo(obj) : QPointF(px, py);
                 executar(Matriz::rotacaoEmTorno(graus, centro));   // y para cima: positivo = anti-horário
-            });
-
-    // Mudou algum parâmetro da window: refaz o SCN de todos os objetos
-    connect(painelPropriedades, &PainelPropriedades::windowAlterada,
-            this, [this](double cx, double cy, double largura, double altura, double angulo) {
-                janela.definir(QPointF(cx, cy), largura, altura, angulo);
-                atualizarSCN();
             });
 
     // Mudou algum parâmetro da viewport: refaz a transformada de viewport
@@ -117,7 +124,7 @@ EditorWindow::EditorWindow(QWidget *parent)
     connect(painelPropriedades, &PainelPropriedades::aplicarComposicaoSolicitada,
             this, [this]() {
                 if (indiceSelecionado < 0) return;
-                Objeto *obj = displayFile.obterObjeto(static_cast<size_t>(indiceSelecionado));
+                Objeto *obj = objetoSelecionado();
                 if (!obj) return;
                 obj->transformar(matrizAcumulada);   // UMA multiplicação por vértice
                 matrizAcumulada = Matriz();
@@ -129,17 +136,30 @@ EditorWindow::EditorWindow(QWidget *parent)
 
 void EditorWindow::carregarCenaTeste() {
     // Coordenadas do MUNDO (eixo y para cima, origem no centro da window inicial).
-    Objeto p1("Meus_Pontos", TipoObjeto::PONTO, {{-125, 300}, {-75, 300}});
-    displayFile.adicionarObjeto(p1);
 
-    Objeto r1("Reta", TipoObjeto::RETA, {{-175, 200}, {75, 200}});
-    displayFile.adicionarObjeto(r1);
+    Objeto casa("Casa", TipoObjeto::RETA, {{-320, -250}, {-100, -250},{-100, -250}, {-100, 0},{-100, 0}, {-210, 150},{-210, 150}, {-320, 0},{-320, 0}, {-320, -250}});
+    displayFile.adicionarObjeto(casa);
 
-    Objeto pol1("Triangulo", TipoObjeto::POLIGONO, {{-25, 100}, {75, -50}, {-125, -50}});
-    displayFile.adicionarObjeto(pol1);
+    Objeto porta("Porta", TipoObjeto::RETA, {{-265, -250}, {-265, -115},{-175, -250}, {-175, -115},{-265, -115}, {-175, -115}});
+    displayFile.adicionarObjeto(porta);
 
-    Objeto pol2("Quadrado", TipoObjeto::POLIGONO, {{-25, -100}, {175, -100}, {175, -300}, {-25, -300}});
-    displayFile.adicionarObjeto(pol2);
+    Objeto janelaCasa("Janela da casa", TipoObjeto::RETA, {{-300, -35}, {-250, -35},{-250, -35}, {-250, 15},{-250, 15}, {-300, 15},{-300, 15}, {-300, -35}});
+    displayFile.adicionarObjeto(janelaCasa);
+
+    Objeto tronco("Tronco da palmeira", TipoObjeto::RETA, {{-25, -250}, {-25, 70}});
+    displayFile.adicionarObjeto(tronco);
+
+    Objeto folhas("Folhas da palmeira", TipoObjeto::RETA, {{-25, 70}, {-125, 120},{-25, 70}, {-85, 185},{-25, 70}, {-25, 210},{-25, 70}, {40, 185},{-25, 70}, {85, 120},{-25, 70}, {105, 60}});
+    displayFile.adicionarObjeto(folhas);
+
+    Objeto carro("Carro", TipoObjeto::RETA, {{70, -220}, {320, -220},{320, -220}, {320, -145},{320, -145}, {250, -145},{250, -145}, {210, -75},{210, -75}, {140, -75},{140, -75}, {100, -145},{100, -145}, {70, -145},{70, -145}, {70, -220}});
+    displayFile.adicionarObjeto(carro);
+
+    Objeto rodaEsquerda("Roda esquerda", TipoObjeto::RETA, {{115, -260}, {160, -260},{160, -260}, {160, -220},{160, -220}, {115, -220},{115, -220}, {115, -260}});
+    displayFile.adicionarObjeto(rodaEsquerda);
+
+    Objeto rodaDireita("Roda direita", TipoObjeto::RETA, {{245, -260}, {290, -260},{290, -260}, {290, -220},{290, -220}, {245, -220},{245, -220}, {245, -260}});
+    displayFile.adicionarObjeto(rodaDireita);
 }
 
 void EditorWindow::executar(const Matriz &m)
@@ -151,7 +171,7 @@ void EditorWindow::executar(const Matriz &m)
         return;
     }
     if (indiceSelecionado < 0) return;
-    Objeto *obj = displayFile.obterObjeto(static_cast<size_t>(indiceSelecionado));
+    Objeto *obj = objetoSelecionado();
     if (!obj) return;
     obj->transformar(m);
     atualizarSCN();
@@ -159,7 +179,7 @@ void EditorWindow::executar(const Matriz &m)
 
 void EditorWindow::atualizarSCN()
 {
-    displayFile.atualizarSCN(janela.matrizSCN());
+    displayFile.atualizarSCN(displayFile.obterJanela().matrizSCN());
     areaVisualizacao->update();
 }
 

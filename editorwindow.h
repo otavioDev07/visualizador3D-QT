@@ -20,7 +20,18 @@ private:
     PainelPropriedades *painelPropriedades = nullptr;
     int indiceSelecionado = -1;
 
-    Janela janela;          // window do mundo
+    bool windowSelecionada() const {
+        return indiceSelecionado == 0;
+    }
+
+    Objeto* objetoSelecionado() {
+        if (indiceSelecionado <= 0)
+            return nullptr;
+
+        return displayFile.obterObjeto(
+            static_cast<size_t>(indiceSelecionado - 1));
+    }
+
     Viewport viewport;      // viewport em pixels
     void atualizarSCN();    // recalcula o SCN de todos os objetos e redesenha
 
@@ -28,7 +39,6 @@ private:
     Matriz matrizAcumulada;
     void atualizarTextoMatriz();
     void executar(const Matriz &m);
-
     void carregarCenaTeste();
 
 public:

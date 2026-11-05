@@ -15,24 +15,13 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
     if (!displayFile) return;
 
     painter.save();
-    painter.setClipRect(viewport.retangulo());
 
     // Transformada de viewport: SCN -> pixels (já calculada em Viewport::definir)
     const Matriz &vp = viewport.matriz();
 
-    // Converte as coordenadas SCN de um objeto para pixels
-    auto paraTela = [&vp](const std::vector<QPointF> &scn) {
-        std::vector<QPointF> tela;
-        tela.reserve(scn.size());
-        for (const auto &p : scn)
-            tela.push_back(vp * p);
-        return tela;
-    };
-
     const auto &objs = displayFile->obterObjetos();
 
     for (const auto &obj : objs) {
-        const std::vector<QPointF> pts = paraTela(obj.pontosSCN);
 
         if (obj.tipo == TipoObjeto::PONTO) {
             painter.setPen(QPen(red, 6, SolidLine, RoundCap));
@@ -54,26 +43,6 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
                     painter.drawLine(vp * a, vp *b);
                 }
             }
-        }
-        else if (obj.tipo == TipoObjeto::POLIGONO) {
-            painter.setPen(QPen(black, 2));
-            painter.setBrush(yellow);
-            QPolygonF poli;
-            for (const auto &pt : pts)
-                poli << pt;
-            painter.drawPolygon(poli);
-        }
-    }
-
-    // Retângulo tracejado em volta do objeto selecionado
-    if (indiceSelecionado >= 0 && indiceSelecionado < static_cast<int>(objs.size())) {
-        QPolygonF poly;
-        for (const auto &pt : paraTela(objs[indiceSelecionado].pontosSCN))
-            poly << pt;
-        if (!poly.isEmpty()) {
-            painter.setBrush(NoBrush);
-            painter.setPen(QPen(darkGreen, 1, DashLine));
-            painter.drawRect(poly.boundingRect().adjusted(-8, -8, 8, 8));
         }
     }
 
