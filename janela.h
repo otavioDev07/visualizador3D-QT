@@ -36,6 +36,23 @@ public:
         recalcular();           // a cada mudança, o SCN é refeito
     }
 
+    void transladar(double dx, double dy) {
+        centro_ += QPointF(dx, dy);
+        recalcular();
+    }
+
+    void escalar(double sx, double sy) {
+        largura_ *= sx;
+        altura_ *= sy;
+        recalcular();
+    }
+
+    void rotacionar(double graus, const QPointF& pivo) {
+        centro_ = Matriz::rotacaoEmTorno(graus, pivo) * centro_;
+        angulo_ += graus;
+        recalcular();
+    }
+
     QPointF centro() const { return centro_; }
     double largura() const { return largura_; }
     double altura() const { return altura_; }

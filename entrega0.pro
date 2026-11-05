@@ -14,6 +14,7 @@ SOURCES += \
 
 HEADERS += \
     areavisualizacao.h \
+    clipping.h \
     janela.h \
     viewport.h \
     displayfile.h \

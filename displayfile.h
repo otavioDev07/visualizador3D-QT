@@ -2,11 +2,13 @@
 #define DISPLAYFILE_H
 
 #include "objeto.h"
+#include "janela.h"
 #include <vector>
 
 class DisplayFile {
 private:
     std::vector<Objeto> objetos;
+    Janela janela;
 
 public:
     DisplayFile() = default;
@@ -32,6 +34,16 @@ public:
         if (indice >= objetos.size()) return nullptr;
         return &objetos[indice];
     }
+
+    Janela& obterJanela() {
+        return janela;
+    }
+
+    const Janela& obterJanela() const {
+        return janela;
+    }
+
+
 };
 
 #endif // DISPLAYFILE_H
