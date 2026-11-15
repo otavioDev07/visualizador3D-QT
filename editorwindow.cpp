@@ -1,11 +1,20 @@
 #include "editorwindow.h"
 #include "areavisualizacao.h"
 #include "painelpropriedades.h"
+#include "leitorobj.h"
 #include <QHBoxLayout>
 #include "matriz.h"
 #include <QDebug>
 #include <QStringList>
 #include <QScrollArea>
+#include <QMenuBar>
+#include <QMenu>
+#include <QAction>
+#include <QStatusBar>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QMessageBox>
+#include <algorithm>
 
 EditorWindow::EditorWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -26,7 +35,13 @@ EditorWindow::EditorWindow(QWidget *parent)
     layout->setContentsMargins(0,0,0,0);
     setCentralWidget(centralWidget);
 
-    setWindowTitle("Entrega 04 - Visualizador Geométrico");
+    QMenu *menuArquivo = menuBar()->addMenu("&Arquivo");
+    QAction *acaoAbrir = menuArquivo->addAction("Carregar &OBJ...");
+    acaoAbrir->setShortcut(QKeySequence::Open);
+    connect(acaoAbrir, &QAction::triggered, this, &EditorWindow::abrirOBJ);
+
+    setWindowTitle("Entrega 05 - Visualizador Geométrico");
+
     resize(1024, 768);
 
     carregarCenaTeste();
@@ -39,11 +54,7 @@ EditorWindow::EditorWindow(QWidget *parent)
     areaVisualizacao->setViewport(viewport);
     atualizarSCN();   // calcula pela primeira vez as coordenadas normalizadas
 
-    QStringList nomes;
-    nomes << "Window";
-    for (const auto& obj : displayFile.obterObjetos())
-        nomes << obj.nome;
-    painelPropriedades->definirObjetos(nomes);
+    atualizarListaObjetos();
 
     // Quando o usuário seleciona um objeto no painel
     connect(painelPropriedades, &PainelPropriedades::objetoSelecionado,
@@ -52,24 +63,24 @@ EditorWindow::EditorWindow(QWidget *parent)
             });
 
     auto centroideEfetivo = [this](const Objeto *obj) {
-        const QPointF c = obj->centroide();
+        const Ponto3D c = obj->centroide();
         return modoAcumular ? matrizAcumulada * c : c;
     };
 
     // Translação do objeto selecionado
     connect(painelPropriedades, &PainelPropriedades::translacaoSolicitada,
-            this, [this](double dx, double dy) {
+            this, [this](double dx, double dy, double dz) {
                 if (windowSelecionada()) {
                     displayFile.obterJanela().transladar(dx, dy);
                     atualizarSCN();
                     return;
                 }
-                executar(Matriz::translacao(dx, dy));
+                executar(Matriz::translacao(dx, dy, dz));
             });
 
     // Escala do objeto selecionado, em torno do seu centroide
     connect(painelPropriedades, &PainelPropriedades::escalaSolicitada,
-            this, [this, centroideEfetivo](double sx, double sy) {
+           this, [this, centroideEfetivo](double sx, double sy, double sz) {
                 if (indiceSelecionado < 0) return;
                 if (windowSelecionada()) {
                     displayFile.obterJanela().escalar(sx, sy);
@@ -78,26 +89,31 @@ EditorWindow::EditorWindow(QWidget *parent)
                 }
                 Objeto *obj = objetoSelecionado();
                 if (!obj) return;
-                executar(Matriz::escalaEmTorno(sx, sy, centroideEfetivo(obj)));
+                executar(Matriz::escalaEmTorno(sx, sy, sz, centroideEfetivo(obj)));
             });
 
 
     // Rotação do objeto selecionado
     connect(painelPropriedades, &PainelPropriedades::rotacaoSolicitada,
-            this, [this, centroideEfetivo](double graus, bool usarCentroide, double px, double py) {
+            this, [this, centroideEfetivo](int eixo, double graus, bool usarCentroide,
+                                     double px, double py, double pz) {
                 if (indiceSelecionado < 0) return;
                 if (windowSelecionada()) {
+                    if (eixo != static_cast<int>(Eixo::Z)) {
+                        statusBar()->showMessage("A window só pode girar em torno do eixo Z.", 4000);
+                        return;
+                    }
                     const QPointF pivo = usarCentroide
-                        ? displayFile.obterJanela().centro()
-                        : QPointF(px, py);
+                                             ? displayFile.obterJanela().centro()
+                                             : QPointF(px, py);
                     displayFile.obterJanela().rotacionar(graus, pivo);
                     atualizarSCN();
                     return;
                 }
                 Objeto *obj = objetoSelecionado();
                 if (!obj) return;
-                QPointF centro = usarCentroide ? centroideEfetivo(obj) : QPointF(px, py);
-                executar(Matriz::rotacaoEmTorno(graus, centro));   // y para cima: positivo = anti-horário
+                const Ponto3D centro = usarCentroide ? centroideEfetivo(obj) : Ponto3D(px, py, pz);
+                executar(Matriz::rotacaoEmTorno(static_cast<Eixo>(eixo), graus, centro));
             });
 
     // Mudou algum parâmetro da viewport: refaz a transformada de viewport
@@ -136,6 +152,7 @@ EditorWindow::EditorWindow(QWidget *parent)
 
 void EditorWindow::carregarCenaTeste() {
     // Coordenadas do MUNDO (eixo y para cima, origem no centro da window inicial).
+    // Os objetos 2D da cena ficam no plano z = 0.
 
     Objeto casa("Casa", TipoObjeto::RETA, {{-320, -250}, {-100, -250},{-100, -250}, {-100, 0},{-100, 0}, {-210, 150},{-210, 150}, {-320, 0},{-320, 0}, {-320, -250}});
     displayFile.adicionarObjeto(casa);
@@ -160,6 +177,71 @@ void EditorWindow::carregarCenaTeste() {
 
     Objeto rodaDireita("Roda direita", TipoObjeto::RETA, {{245, -260}, {290, -260},{290, -260}, {290, -220},{290, -220}, {245, -220},{245, -220}, {245, -260}});
     displayFile.adicionarObjeto(rodaDireita);
+
+    // --- Entrega 5: modelos 3D carregados de arquivos OBJ (embutidos via recursos.qrc) ---
+    // 'tamanho' = maior dimensão do modelo, em unidades do mundo; 'destino' = onde fica o centro dele.
+    // Charizard: no céu, à direita (acima do carro, ao lado da palmeira)
+    carregarModelo(":/modelos/charizard.obj", "Charizard", 260.0,
+                   Ponto3D(200.0, 110.0, 0.0), QColor(220, 90, 0));
+    // Segundo modelo: "em cima" do telhado da casa
+    carregarModelo(":/modelos/alien_animal.obj", "Alien Animal", 280.0,
+                   Ponto3D(-210.0, 243.0, 0.0), QColor(120, 40, 160));
+}
+
+bool EditorWindow::carregarModelo(const QString &caminho, const QString &nome, double tamanho,
+                                  const Ponto3D &destino, const QColor &cor)
+{
+    LeitorOBJ::Malha malha;
+    QString erro;
+    if (!LeitorOBJ::ler(caminho, malha, erro)) {
+        QMessageBox::warning(this, "Erro ao carregar OBJ", erro);
+        return false;
+    }
+
+    const size_t nVertices = malha.vertices.size();
+    const size_t nArestas = malha.arestas.size();
+
+    Objeto obj(nome, TipoObjeto::MODELO, std::move(malha.vertices), std::move(malha.arestas));
+    obj.cor = cor;
+    obj.normalizar(tamanho, destino);
+    displayFile.adicionarObjeto(obj);
+
+    statusBar()->showMessage(QString("%1: %2 vértices, %3 arestas")
+                                 .arg(nome).arg(nVertices).arg(nArestas), 6000);
+    return true;
+}
+
+void EditorWindow::abrirOBJ()
+{
+    const QString caminho = QFileDialog::getOpenFileName(
+        this, "Carregar modelo OBJ", QString(), "Modelos Wavefront (*.obj)");
+    if (caminho.isEmpty())
+        return;
+
+    const Janela &janela = displayFile.obterJanela();
+    const double tamanho = 0.4 * std::min(janela.largura(), janela.altura());
+    const Ponto3D destino(janela.centro().x(), janela.centro().y(), 0.0);
+
+    static const QColor paleta[] = { QColor(0, 120, 60), QColor(200, 30, 120),
+                                    QColor(0, 110, 190), QColor(150, 100, 0) };
+    const QColor cor = paleta[displayFile.quantidade() % 4];
+
+    if (!carregarModelo(caminho, QFileInfo(caminho).completeBaseName(), tamanho, destino, cor))
+        return;
+
+    atualizarSCN();
+    atualizarListaObjetos(static_cast<int>(displayFile.quantidade()));
+}
+
+void EditorWindow::atualizarListaObjetos(int selecionar)
+{
+    QStringList nomes;
+    nomes << "Window";
+    for (const auto& obj : displayFile.obterObjetos())
+        nomes << obj.nome;
+    painelPropriedades->definirObjetos(nomes);
+    if (selecionar >= 0)
+        painelPropriedades->selecionarObjeto(selecionar);
 }
 
 void EditorWindow::executar(const Matriz &m)
@@ -186,11 +268,12 @@ void EditorWindow::atualizarSCN()
 void EditorWindow::atualizarTextoMatriz()
 {
     QString t;
-    for (int i = 0; i < 3; i++) {
-        t += QString("[%1 %2 %3]\n")
+    for (int i = 0; i < 4; i++) {
+        t += QString("[%1 %2 %3 %4]\n")
         .arg(matrizAcumulada(i, 0), 8, 'f', 2)
             .arg(matrizAcumulada(i, 1), 8, 'f', 2)
-            .arg(matrizAcumulada(i, 2), 8, 'f', 2);
+            .arg(matrizAcumulada(i, 2), 8, 'f', 2)
+            .arg(matrizAcumulada(i, 3), 8, 'f', 2);
     }
     painelPropriedades->mostrarMatriz(t);
 }

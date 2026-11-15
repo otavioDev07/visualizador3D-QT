@@ -26,8 +26,9 @@ public:
     }
 
     void atualizarSCN(const Matriz& scn) {
+        const Matriz pipeline = scn * Matriz::projecaoOrtogonal();
         for (auto& obj : objetos)
-            obj.atualizarSCN(scn);
+            obj.atualizarSCN(pipeline);
     }
 
     Objeto* obterObjeto(size_t indice) {

@@ -8,6 +8,7 @@ CONFIG += c++17
 
 SOURCES += \
     areavisualizacao.cpp \
+    leitorobj.cpp \
     main.cpp \
     editorwindow.cpp \
     painelpropriedades.cpp
@@ -16,6 +17,7 @@ HEADERS += \
     areavisualizacao.h \
     clipping.h \
     janela.h \
+    leitorobj.h \
     viewport.h \
     displayfile.h \
     editorwindow.h \
@@ -27,3 +29,6 @@ HEADERS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    recursos.qrc

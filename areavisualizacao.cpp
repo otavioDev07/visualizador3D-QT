@@ -1,5 +1,7 @@
 #include "areavisualizacao.h"
 #include <QPainter>
+#include <QLineF>
+#include <QVector>
 #include "clipping.h"
 using namespace Qt;
 
@@ -7,7 +9,6 @@ AreaVisualizacao::AreaVisualizacao(QWidget *parent) : QWidget{parent} {}
 
 void AreaVisualizacao::paintEvent(QPaintEvent *) {
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
 
     painter.fillRect(rect(), white);
     painter.fillRect(viewport.retangulo(), white);
@@ -23,8 +24,11 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
 
     for (const auto &obj : objs) {
 
+        if (obj.pontosSCN.size() != obj.vertices.size()) continue;
+
         if (obj.tipo == TipoObjeto::PONTO) {
-            painter.setPen(QPen(red, 6, SolidLine, RoundCap));
+            painter.setRenderHint(QPainter::Antialiasing, true);
+            painter.setPen(QPen(obj.cor, 6, SolidLine, RoundCap));
             //desenho com clipping de pontos
             for (const auto& pontoSCN : obj.pontosSCN){
                 if (Clipping::pontoDentro(pontoSCN)){
@@ -32,21 +36,28 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
                 }
             }
         }
-        else if (obj.tipo == TipoObjeto::RETA) {
-            painter.setPen(QPen(blue, 2));
-            //desenho com clipping de reta
-            for(size_t i = 0; i + 1 < obj.pontosSCN.size(); i += 2){
-                QPointF a = obj.pontosSCN[i];
-                QPointF b = obj.pontosSCN[i+1];
+        else {
+            const bool modelo = (obj.tipo == TipoObjeto::MODELO);
+            painter.setRenderHint(QPainter::Antialiasing, !modelo);
+            painter.setPen(QPen(obj.cor, modelo ? 1 : 2));
+
+            QVector<QLineF> linhas;
+            linhas.reserve(static_cast<qsizetype>(obj.arestas.size()));
+
+            for (const auto &aresta : obj.arestas) {
+                QPointF a = obj.pontosSCN[static_cast<size_t>(aresta.first)];
+                QPointF b = obj.pontosSCN[static_cast<size_t>(aresta.second)];
 
                 if (Clipping::recortarReta(a, b)){
-                    painter.drawLine(vp * a, vp *b);
+                    linhas.append(QLineF(vp * a, vp * b));
                 }
             }
+            painter.drawLines(linhas);
         }
     }
 
     painter.restore();
+    painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(QPen(darkGray, 1));
     painter.setBrush(NoBrush);
     painter.drawRect(viewport.retangulo());
