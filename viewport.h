@@ -19,8 +19,8 @@ private:
         const double w = xmax_ - xmin_;
         const double h = ymax_ - ymin_;
         vp_ = Matriz();
-        vp_(0, 0) =  w / 2.0;  vp_(0, 2) = xmin_ + w / 2.0;
-        vp_(1, 1) = -h / 2.0;  vp_(1, 2) = ymin_ + h / 2.0;
+        vp_(0, 0) =  w / 2.0;  vp_(0, 3) = xmin_ + w / 2.0;
+        vp_(1, 1) = -h / 2.0;  vp_(1, 3) = ymin_ + h / 2.0;
     }
 
 public:

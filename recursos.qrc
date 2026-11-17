@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>modelos/alien_animal.obj</file>
+        <file>modelos/charizard.obj</file>
+    </qresource>
+</RCC>

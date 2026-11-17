@@ -41,6 +41,11 @@ private:
     void executar(const Matriz &m);
     void carregarCenaTeste();
 
+    bool carregarModelo(const QString &caminho, const QString &nome, double tamanho,
+                        const Ponto3D &destino, const QColor &cor);
+    void abrirOBJ();
+    void atualizarListaObjetos(int selecionar = -1);
+
 public:
     explicit EditorWindow(QWidget *parent = nullptr);
     ~EditorWindow() override;

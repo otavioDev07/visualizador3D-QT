@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QRadioButton>
 #include <QCheckBox>
+#include <QComboBox>
 
 PainelPropriedades::PainelPropriedades(QWidget *parent)
     : QWidget(parent)
@@ -17,7 +18,7 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     // --- Lista de objetos ---
     layout->addWidget(new QLabel("Objetos", this));
     listaObjetos = new QListWidget(this);
-    listaObjetos->setMinimumHeight(100);
+    listaObjetos->setMinimumHeight(140);
     layout->addWidget(listaObjetos);
 
     connect(listaObjetos, &QListWidget::currentRowChanged,
@@ -29,20 +30,22 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
 
     spinDx = new QDoubleSpinBox(grupoTrans);
     spinDy = new QDoubleSpinBox(grupoTrans);
-    for (QDoubleSpinBox *s : {spinDx, spinDy}) {
+    spinDz = new QDoubleSpinBox(grupoTrans);
+    for (QDoubleSpinBox *s : {spinDx, spinDy, spinDz}) {
         s->setRange(-10000.0, 10000.0);
         s->setDecimals(1);
         s->setValue(0.0);
     }
     formTrans->addRow("dx:", spinDx);
     formTrans->addRow("dy:", spinDy);
+    formTrans->addRow("dz:", spinDz);
 
     QPushButton *btnTransladar = new QPushButton("Transladar", grupoTrans);
     formTrans->addRow(btnTransladar);
     layout->addWidget(grupoTrans);
 
     connect(btnTransladar, &QPushButton::clicked, this, [this]() {
-        emit translacaoSolicitada(spinDx->value(), spinDy->value());
+        emit translacaoSolicitada(spinDx->value(), spinDy->value(), spinDz->value());
     });
 
     // --- Escalar ---
@@ -51,7 +54,8 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
 
     spinSx = new QDoubleSpinBox(grupoEscala);
     spinSy = new QDoubleSpinBox(grupoEscala);
-    for (QDoubleSpinBox *s : {spinSx, spinSy}) {
+    spinSz = new QDoubleSpinBox(grupoEscala);
+    for (QDoubleSpinBox *s : {spinSx, spinSy, spinSz}) {
         s->setRange(0.1, 100.0);
         s->setDecimals(2);
         s->setSingleStep(0.1);
@@ -59,18 +63,26 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     }
     formEscala->addRow("sx:", spinSx);
     formEscala->addRow("sy:", spinSy);
+    formEscala->addRow("sz:", spinSz);
 
     QPushButton *btnEscalar = new QPushButton("Escalar", grupoEscala);
     formEscala->addRow(btnEscalar);
     layout->addWidget(grupoEscala);
 
     connect(btnEscalar, &QPushButton::clicked, this, [this]() {
-        emit escalaSolicitada(spinSx->value(), spinSy->value());
+        emit escalaSolicitada(spinSx->value(), spinSy->value(), spinSz->value());
     });
 
     // --- Rotação ---
     QGroupBox *grupoRot = new QGroupBox("Rotação", this);
     QFormLayout *formRot = new QFormLayout(grupoRot);
+
+    comboEixo = new QComboBox(grupoRot);
+    comboEixo->addItem("X (horizontal)");     // índice 0 = Eixo::X
+    comboEixo->addItem("Y (vertical)");       // índice 1 = Eixo::Y
+    comboEixo->addItem("Z (profundidade)");   // índice 2 = Eixo::Z
+    comboEixo->setCurrentIndex(2);
+    formRot->addRow("Eixo:", comboEixo);
 
     spinAngulo = new QDoubleSpinBox(grupoRot);
     spinAngulo->setRange(-360.0, 360.0);
@@ -87,7 +99,8 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
 
     spinPx = new QDoubleSpinBox(grupoRot);
     spinPy = new QDoubleSpinBox(grupoRot);
-    for (QDoubleSpinBox *s : {spinPx, spinPy}) {
+    spinPz = new QDoubleSpinBox(grupoRot);
+    for (QDoubleSpinBox *s : {spinPx, spinPy, spinPz}) {
         s->setRange(-10000.0, 10000.0);
         s->setDecimals(1);
         s->setValue(0.0);
@@ -95,11 +108,13 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     }
     formRot->addRow("x:", spinPx);
     formRot->addRow("y:", spinPy);
+    formRot->addRow("z:", spinPz);
 
-    // Habilita x/y apenas quando "ponto" estiver marcado
+    // Habilita x/y/z apenas quando "ponto" estiver marcado
     connect(radioPonto, &QRadioButton::toggled, this, [this](bool marcado) {
         spinPx->setEnabled(marcado);
         spinPy->setEnabled(marcado);
+        spinPz->setEnabled(marcado);
     });
 
     QPushButton *btnRotacionar = new QPushButton("Rotacionar", grupoRot);
@@ -107,9 +122,10 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     layout->addWidget(grupoRot);
 
     connect(btnRotacionar, &QPushButton::clicked, this, [this]() {
-        emit rotacaoSolicitada(spinAngulo->value(),
+        emit rotacaoSolicitada(comboEixo->currentIndex(),
+                               spinAngulo->value(),
                                radioCentroide->isChecked(),
-                               spinPx->value(), spinPy->value());
+                               spinPx->value(), spinPy->value(), spinPz->value());
     });
 
     // --- Viewport ---
@@ -135,7 +151,7 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
         connect(s, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this]() { emitirViewport(); });
 
     // --- Composição ---
-    QGroupBox *grupoComp = new QGroupBox("Composição de matrizes", this);
+    QGroupBox *grupoComp = new QGroupBox("Composição de matrizes (4x4)", this);
     QVBoxLayout *vComp = new QVBoxLayout(grupoComp);
 
     QCheckBox *chkAcumular = new QCheckBox("Acumular (não aplica na hora)", grupoComp);
@@ -155,13 +171,21 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     connect(btnAplicar, &QPushButton::clicked, this, &PainelPropriedades::aplicarComposicaoSolicitada);
     connect(btnLimpar, &QPushButton::clicked, this, &PainelPropriedades::limparComposicaoSolicitada);
 
-
+    // --- Projeção (informativo) ---
+    QLabel *labelProjecao = new QLabel("Projeção: ortogonal (plano XY; a coordenada z é descartada).", this);
+    labelProjecao->setWordWrap(true);
+    layout->addWidget(labelProjecao);
 }
 
 void PainelPropriedades::definirObjetos(const QStringList &nomes)
 {
     listaObjetos->clear();
     listaObjetos->addItems(nomes);
+}
+
+void PainelPropriedades::selecionarObjeto(int indice)
+{
+    listaObjetos->setCurrentRow(indice);
 }
 
 void PainelPropriedades::mostrarMatriz(const QString &texto)
