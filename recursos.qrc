@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>modelos/alien_animal.obj</file>
         <file>modelos/charizard.obj</file>
+        <file>modelos/Pikachu OBJ.obj</file>
     </qresource>
 </RCC>
