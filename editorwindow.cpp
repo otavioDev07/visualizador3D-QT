@@ -163,12 +163,6 @@ void EditorWindow::carregarCenaTeste() {
     Objeto janelaCasa("Janela da casa", TipoObjeto::RETA, {{-300, -35}, {-250, -35},{-250, -35}, {-250, 15},{-250, 15}, {-300, 15},{-300, 15}, {-300, -35}});
     displayFile.adicionarObjeto(janelaCasa);
 
-    Objeto tronco("Tronco da palmeira", TipoObjeto::RETA, {{-25, -250}, {-25, 70}});
-    displayFile.adicionarObjeto(tronco);
-
-    Objeto folhas("Folhas da palmeira", TipoObjeto::RETA, {{-25, 70}, {-125, 120},{-25, 70}, {-85, 185},{-25, 70}, {-25, 210},{-25, 70}, {40, 185},{-25, 70}, {85, 120},{-25, 70}, {105, 60}});
-    displayFile.adicionarObjeto(folhas);
-
     Objeto carro("Carro", TipoObjeto::RETA, {{70, -220}, {320, -220},{320, -220}, {320, -145},{320, -145}, {250, -145},{250, -145}, {210, -75},{210, -75}, {140, -75},{140, -75}, {100, -145},{100, -145}, {70, -145},{70, -145}, {70, -220}});
     displayFile.adicionarObjeto(carro);
 
@@ -178,14 +172,11 @@ void EditorWindow::carregarCenaTeste() {
     Objeto rodaDireita("Roda direita", TipoObjeto::RETA, {{245, -260}, {290, -260},{290, -260}, {290, -220},{290, -220}, {245, -220},{245, -220}, {245, -260}});
     displayFile.adicionarObjeto(rodaDireita);
 
-    // --- Entrega 5: modelos 3D carregados de arquivos OBJ (embutidos via recursos.qrc) ---
-    // 'tamanho' = maior dimensão do modelo, em unidades do mundo; 'destino' = onde fica o centro dele.
-    // Charizard: no céu, à direita (acima do carro, ao lado da palmeira)
     carregarModelo(":/modelos/charizard.obj", "Charizard", 260.0,
                    Ponto3D(200.0, 110.0, 0.0), QColor(220, 90, 0));
-    // Segundo modelo: "em cima" do telhado da casa
     carregarModelo(":/modelos/alien_animal.obj", "Alien Animal", 280.0,
                    Ponto3D(-210.0, 243.0, 0.0), QColor(120, 40, 160));
+    carregarModelo(":/modelos/Pikachu OBJ.obj", "Pikachu", 220.0, Ponto3D(0.0, 100.0, 0.0), QColor(255, 220, 0));
 }
 
 bool EditorWindow::carregarModelo(const QString &caminho, const QString &nome, double tamanho,
