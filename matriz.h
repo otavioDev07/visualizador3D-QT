@@ -120,6 +120,24 @@ public:
         p.m[2][2] = 0.0;
         return p;
     }
+
+    static Matriz perspectiva(double d) {
+        Matriz p;
+        p.m[3][2] = 1.0 / d;
+        p.m[3][3] = 0.0;
+        return p;
+    }
+
+    Ponto3D aplicarHomogeneo(const Ponto3D& p, double& w) const {
+        const double x = m[0][0]*p.x + m[0][1]*p.y + m[0][2]*p.z + m[0][3];
+        const double y = m[1][0]*p.x + m[1][1]*p.y + m[1][2]*p.z + m[1][3];
+        const double z = m[2][0]*p.x + m[2][1]*p.y + m[2][2]*p.z + m[2][3];
+        w              = m[3][0]*p.x + m[3][1]*p.y + m[3][2]*p.z + m[3][3];
+
+        if (std::abs(w) < 1e-9)
+            return Ponto3D(x, y, z);
+        return Ponto3D(x / w, y / w, z / w);
+    }
 };
 
 #endif // MATRIZ_H

@@ -15,6 +15,7 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <algorithm>
+#include <iostream>
 
 EditorWindow::EditorWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,7 +41,7 @@ EditorWindow::EditorWindow(QWidget *parent)
     acaoAbrir->setShortcut(QKeySequence::Open);
     connect(acaoAbrir, &QAction::triggered, this, &EditorWindow::abrirOBJ);
 
-    setWindowTitle("Entrega 05 - Visualizador Geométrico");
+    setWindowTitle("Entrega 06 - Visualizador Geométrico");
 
     resize(1024, 768);
 
@@ -100,7 +101,8 @@ EditorWindow::EditorWindow(QWidget *parent)
                 if (indiceSelecionado < 0) return;
                 if (windowSelecionada()) {
                     if (eixo != static_cast<int>(Eixo::Z)) {
-                        statusBar()->showMessage("A window só pode girar em torno do eixo Z.", 4000);
+                        displayFile.obterJanela().rotacionar3D(static_cast<Eixo>(eixo), graus);
+                        atualizarSCN();
                         return;
                     }
                     const QPointF pivo = usarCentroide
@@ -145,6 +147,19 @@ EditorWindow::EditorWindow(QWidget *parent)
                 obj->transformar(matrizAcumulada);   // UMA multiplicação por vértice
                 matrizAcumulada = Matriz();
                 atualizarTextoMatriz();
+                atualizarSCN();
+            });
+    // Troca de projeção e distância d
+    connect(painelPropriedades, &PainelPropriedades::projecaoAlterada,
+            this, [this](int tipo) {
+                displayFile.obterJanela().definirProjecao(
+                    tipo == 1 ? TipoProjecao::Perspectiva : TipoProjecao::Paralela);
+                atualizarSCN();
+            });
+
+    connect(painelPropriedades, &PainelPropriedades::distanciaAlterada,
+            this, [this](double d) {
+                displayFile.obterJanela().definirDistancia(d);
                 atualizarSCN();
             });
 
@@ -252,7 +267,7 @@ void EditorWindow::executar(const Matriz &m)
 
 void EditorWindow::atualizarSCN()
 {
-    displayFile.atualizarSCN(displayFile.obterJanela().matrizSCN());
+        displayFile.atualizarSCN(displayFile.obterJanela());;
     areaVisualizacao->update();
 }
 

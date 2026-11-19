@@ -37,6 +37,9 @@ private:
     QDoubleSpinBox *spinVxmax = nullptr;
     QDoubleSpinBox *spinVymax = nullptr;
 
+    QComboBox *comboProjecao = nullptr;
+    QDoubleSpinBox *spinDistancia = nullptr;
+
     void emitirViewport();
 
 public:
@@ -57,6 +60,8 @@ signals:
     void aplicarComposicaoSolicitada();
     void limparComposicaoSolicitada();
     void viewportAlterada(double xmin, double ymin, double xmax, double ymax);
+    void projecaoAlterada(int tipo);
+    void distanciaAlterada(double d);
 
 };
 
