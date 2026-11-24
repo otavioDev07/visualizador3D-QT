@@ -2,6 +2,9 @@
 #define CLIPPING_H
 
 #include <QPointF>
+#include <algorithm>
+#include <cmath>
+#include "matriz.h"
 
 namespace Clipping {
 // window ja normalizada
@@ -81,6 +84,71 @@ inline bool recortarReta(QPointF& a, QPointF& b){
             codeB = regionCode(b);
         }
     }
+
+}
+
+namespace Volumetrico {
+
+constexpr double Z_MINIMO = 1e-3;
+
+inline bool pontoDentro(const Ponto3D& p, double largura, double altura, double d)
+{
+    if (p.z < Z_MINIMO || d <= 0.0)
+        return false;
+
+    const double limiteX = p.z * (largura * 0.5) / d;
+    const double limiteY = p.z * (altura  * 0.5) / d;
+    return p.x >= -limiteX && p.x <= limiteX &&
+           p.y >= -limiteY && p.y <= limiteY;
+}
+
+// Liang-Barsky generalizado
+inline bool recortarReta(Ponto3D& a, Ponto3D& b,double largura, double altura, double d){
+    if (d <= 0.0 || largura <= 0.0 || altura <= 0.0)
+        return false;
+
+    const double fatorX = (largura * 0.5) / d;
+    const double fatorY = (altura  * 0.5) / d;
+    const auto valorPlano = [fatorX, fatorY](const Ponto3D& p, int plano) {
+        switch (plano) {
+        case 0: return p.z - Z_MINIMO;       // frente do COP
+        case 1: return p.x + fatorX * p.z;   // esquerda
+        case 2: return fatorX * p.z - p.x;   // direita
+        case 3: return p.y + fatorY * p.z;   // baixo
+        default: return fatorY * p.z - p.y;  // cima
+        }
+    };
+
+    double inicio = 0.0;
+    double fim = 1.0;
+
+    for (int plano = 0; plano < 5; ++plano) {
+        const double fa = valorPlano(a, plano);
+        const double fb = valorPlano(b, plano);
+        const double delta = fb - fa;
+
+        if (std::abs(delta) < 1e-12) {
+            if (fa < 0.0)
+                return false;
+            continue;
+        }
+
+        const double t = -fa / delta;
+        if (delta > 0.0)
+            inicio = std::max(inicio, t);
+        else
+            fim = std::min(fim, t);
+
+        if (inicio > fim)
+            return false;
+    }
+
+    const Ponto3D originalA = a;
+    const Ponto3D direcao(b.x - a.x, b.y - a.y, b.z - a.z);
+    a = Ponto3D(originalA.x + inicio * direcao.x, originalA.y + inicio * direcao.y, originalA.z + inicio * direcao.z);
+    b = Ponto3D(originalA.x + fim * direcao.x, originalA.y + fim * direcao.y, originalA.z + fim * direcao.z);
+    return true;
+}
 
 }
 

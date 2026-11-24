@@ -29,7 +29,8 @@ public:
         if (j.projecao() == TipoProjecao::Perspectiva) {
             const Matriz mper = Matriz::perspectiva(j.distancia());
             for (auto& obj : objetos)
-                obj.atualizarSCNPerspectiva(j.matrizVisao(), mper, j.matrizSCN2D());
+                obj.atualizarSCNPerspectiva(j.matrizVisao(), mper, j.matrizSCN2D(),
+                                             j.largura(), j.altura(), j.distancia());
         } else {
             const Matriz pipeline = j.matrizSCN2D() * Matriz::projecaoOrtogonal() * j.matrizVisao();
             for (auto& obj : objetos)
