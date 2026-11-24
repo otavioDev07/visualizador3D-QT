@@ -24,6 +24,7 @@ struct Objeto {
     std::vector<Ponto3D> vertices;
     std::vector<std::pair<int, int>> arestas;
     std::vector<QPointF> pontosSCN;
+    std::vector<bool> visivel;
     QColor cor;
 
     Objeto(QString n, TipoObjeto t, const std::vector<QPointF>& pontos2D)
@@ -95,6 +96,7 @@ struct Objeto {
 
     void atualizarSCN(const Matriz& pipeline) {
         pontosSCN.resize(vertices.size());
+        visivel.assign(vertices.size(), true);
         for (size_t i = 0; i < vertices.size(); ++i) {
             const Ponto3D p = pipeline * vertices[i];
             pontosSCN[i] = QPointF(p.x, p.y);
@@ -104,6 +106,27 @@ struct Objeto {
     void transformar(const Matriz& m) {
         for (auto& p : vertices)
             p = m * p;
+    }
+
+    void atualizarSCNPerspectiva(const Matriz& visao, const Matriz& mper, const Matriz& scn2D) {
+        constexpr double W_MINIMO = 0.001;
+
+        pontosSCN.resize(vertices.size());
+        visivel.resize(vertices.size());
+        const Matriz projecao = mper * visao;
+
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            double w = 0.0;
+            const Ponto3D p = projecao.aplicarHomogeneo(vertices[i], w);
+
+            if (w <= W_MINIMO) {          // atrás (ou colado) no olho: não desenha
+                visivel[i] = false;
+                pontosSCN[i] = QPointF();
+                continue;
+            }
+            visivel[i] = true;
+            pontosSCN[i] = scn2D * QPointF(p.x, p.y);
+        }
     }
 };
 

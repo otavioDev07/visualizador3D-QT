@@ -24,16 +24,17 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
 
     for (const auto &obj : objs) {
 
-        if (obj.pontosSCN.size() != obj.vertices.size()) continue;
+        if (obj.pontosSCN.size() != obj.vertices.size() ||
+            obj.visivel.size()   != obj.vertices.size()) continue;
 
         if (obj.tipo == TipoObjeto::PONTO) {
             painter.setRenderHint(QPainter::Antialiasing, true);
             painter.setPen(QPen(obj.cor, 6, SolidLine, RoundCap));
             //desenho com clipping de pontos
-            for (const auto& pontoSCN : obj.pontosSCN){
-                if (Clipping::pontoDentro(pontoSCN)){
-                    painter.drawPoint(vp * pontoSCN);
-                }
+            for (size_t i = 0; i < obj.pontosSCN.size(); ++i) {
+                if (!obj.visivel[i]) continue;
+                if (Clipping::pontoDentro(obj.pontosSCN[i]))
+                    painter.drawPoint(vp * obj.pontosSCN[i]);
             }
         }
         else {
@@ -45,6 +46,8 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
             linhas.reserve(static_cast<qsizetype>(obj.arestas.size()));
 
             for (const auto &aresta : obj.arestas) {
+                if (!obj.visivel[static_cast<size_t>(aresta.first)] ||
+                    !obj.visivel[static_cast<size_t>(aresta.second)]) continue;
                 QPointF a = obj.pontosSCN[static_cast<size_t>(aresta.first)];
                 QPointF b = obj.pontosSCN[static_cast<size_t>(aresta.second)];
 

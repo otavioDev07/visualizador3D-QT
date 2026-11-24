@@ -2,27 +2,49 @@
 #define JANELA_H
 
 #include <QPointF>
+#include <cmath>
 #include "matriz.h"
 
-// "Window" do mundo (retângulo de recorte/visão no sistema de coordenadas do mundo).
-// Chamada de Janela para não confundir com QWindow/QMainWindow do Qt.
+enum class TipoProjecao { Paralela, Perspectiva };
+
 class Janela {
 private:
     QPointF centro_ {0.0, 0.0};
     double largura_ = 700.0;
     double altura_  = 700.0;
-    double angulo_  = 0.0;      // graus, anti-horário (y para cima)
+    double angulo_  = 0.0;
 
-    Matriz scn_;                // cache da transformada de normalização
+    TipoProjecao projecao_ = TipoProjecao::Paralela;
+    Ponto3D vpn_ {0.0, 0.0, 1.0};   // View Plane Normal
+    double d_ = 800.0;              // distância do COP até o plano de projeção
+
+    Matriz scn_;
+    Matriz visao_;
+    Matriz scn2D_;
 
     void recalcular() {
-        // SCN = S(2/W, 2/H) * R(-ângulo) * T(-cx, -cy)
-        //  1) leva o centro da window para a origem
-        //  2) desfaz a rotação da window (ela passa a ficar alinhada aos eixos)
-        //  3) escala para que a window vire o quadrado [-1,1] x [-1,1]
         scn_ = Matriz::escala(2.0 / largura_, 2.0 / altura_)
                * Matriz::rotacao(-angulo_)
                * Matriz::translacao(-centro_.x(), -centro_.y());
+
+        // VPN normalizado
+        const double len = std::sqrt(vpn_.x*vpn_.x + vpn_.y*vpn_.y + vpn_.z*vpn_.z);
+        const double vx = vpn_.x / len, vy = vpn_.y / len, vz = vpn_.z / len;
+
+        const Ponto3D cw(centro_.x(), centro_.y(), 0.0);
+        const Ponto3D cop(cw.x - d_ * vx, cw.y - d_ * vy, cw.z - d_ * vz);
+
+        // Angulos do VPN em torno de Y e de X
+        const double r = std::sqrt(vx*vx + vz*vz);
+        const double grausY = -std::atan2(vx, vz) * 180.0 / M_PI;
+        const double grausX =  std::atan2(vy, r)  * 180.0 / M_PI;
+
+        visao_ = Matriz::rotacao(Eixo::X, grausX)
+                 * Matriz::rotacao(Eixo::Y, grausY)
+                 * Matriz::translacao(-cop.x, -cop.y, -cop.z);
+
+        scn2D_ = Matriz::escala(2.0 / largura_, 2.0 / altura_)
+                 * Matriz::rotacao(-angulo_);
     }
 
 public:
@@ -33,7 +55,7 @@ public:
         largura_ = largura;
         altura_ = altura;
         angulo_ = angulo;
-        recalcular();           // a cada mudança, o SCN é refeito
+        recalcular();
     }
 
     void transladar(double dx, double dy) {
@@ -53,12 +75,38 @@ public:
         recalcular();
     }
 
+    // Configuração da câmera
+    void definirProjecao(TipoProjecao p) { projecao_ = p; }
+
+    void definirDistancia(double d) {
+        if (d <= 1.0) return;
+        d_ = d;
+        recalcular();
+    }
+
+    void definirVPN(const Ponto3D &v) {
+        if (std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z) < 1e-9) return;
+        vpn_ = v;
+        recalcular();
+    }
+
+    void rotacionar3D(Eixo eixo, double graus) {
+        vpn_ = Matriz::rotacao(eixo, graus) * vpn_;
+        recalcular();
+    }
+
     QPointF centro() const { return centro_; }
     double largura() const { return largura_; }
     double altura() const { return altura_; }
     double angulo() const { return angulo_; }
 
+    TipoProjecao projecao() const { return projecao_; }
+    double distancia() const { return d_; }
+    Ponto3D vpn() const { return vpn_; }
+
     const Matriz &matrizSCN() const { return scn_; }
+    const Matriz &matrizVisao() const { return visao_; }
+    const Matriz &matrizSCN2D() const { return scn2D_; }
 };
 
 #endif // JANELA_H

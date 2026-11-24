@@ -25,10 +25,16 @@ public:
         return objetos.size();
     }
 
-    void atualizarSCN(const Matriz& scn) {
-        const Matriz pipeline = scn * Matriz::projecaoOrtogonal();
-        for (auto& obj : objetos)
-            obj.atualizarSCN(pipeline);
+    void atualizarSCN(const Janela& j) {
+        if (j.projecao() == TipoProjecao::Perspectiva) {
+            const Matriz mper = Matriz::perspectiva(j.distancia());
+            for (auto& obj : objetos)
+                obj.atualizarSCNPerspectiva(j.matrizVisao(), mper, j.matrizSCN2D());
+        } else {
+            const Matriz pipeline = j.matrizSCN2D() * Matriz::projecaoOrtogonal() * j.matrizVisao();
+            for (auto& obj : objetos)
+                obj.atualizarSCN(pipeline);
+        }
     }
 
     Objeto* obterObjeto(size_t indice) {

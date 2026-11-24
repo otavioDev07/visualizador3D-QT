@@ -171,10 +171,33 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     connect(btnAplicar, &QPushButton::clicked, this, &PainelPropriedades::aplicarComposicaoSolicitada);
     connect(btnLimpar, &QPushButton::clicked, this, &PainelPropriedades::limparComposicaoSolicitada);
 
-    // --- Projeção (informativo) ---
-    QLabel *labelProjecao = new QLabel("Projeção: ortogonal (plano XY; a coordenada z é descartada).", this);
-    labelProjecao->setWordWrap(true);
-    layout->addWidget(labelProjecao);
+    // Projeção
+    QGroupBox *grupoProj = new QGroupBox("Projeção", this);
+    QFormLayout *formProj = new QFormLayout(grupoProj);
+
+    comboProjecao = new QComboBox(grupoProj);
+    comboProjecao->addItem("Paralela (ortogonal)");
+    comboProjecao->addItem("Perspectiva");
+    formProj->addRow("Tipo:", comboProjecao);
+
+    spinDistancia = new QDoubleSpinBox(grupoProj);
+    spinDistancia->setRange(50.0, 5000.0);
+    spinDistancia->setDecimals(0);
+    spinDistancia->setSingleStep(50.0);
+    spinDistancia->setValue(800.0);
+    spinDistancia->setEnabled(false);
+    formProj->addRow("Distância d:", spinDistancia);
+
+    layout->addWidget(grupoProj);
+
+    connect(comboProjecao, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, [this](int indice) {
+                spinDistancia->setEnabled(indice == 1);
+                emit projecaoAlterada(indice);
+            });
+
+    connect(spinDistancia, qOverload<double>(&QDoubleSpinBox::valueChanged),
+            this, &PainelPropriedades::distanciaAlterada);
 }
 
 void PainelPropriedades::definirObjetos(const QStringList &nomes)
