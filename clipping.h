@@ -147,6 +147,12 @@ inline bool recortarReta(Ponto3D& a, Ponto3D& b,double largura, double altura, d
     const Ponto3D direcao(b.x - a.x, b.y - a.y, b.z - a.z);
     a = Ponto3D(originalA.x + inicio * direcao.x, originalA.y + inicio * direcao.y, originalA.z + inicio * direcao.z);
     b = Ponto3D(originalA.x + fim * direcao.x, originalA.y + fim * direcao.y, originalA.z + fim * direcao.z);
+
+    // Uma interseção exatamente no plano próximo pode ficar alguns ulps abaixo
+    // de Z_MINIMO; fixa esse erro de arredondamento antes da projeção.
+    constexpr double TOLERANCIA = 1e-10;
+    if (std::abs(a.z - Z_MINIMO) < TOLERANCIA) a.z = Z_MINIMO;
+    if (std::abs(b.z - Z_MINIMO) < TOLERANCIA) b.z = Z_MINIMO;
     return true;
 }
 
