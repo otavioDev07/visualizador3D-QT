@@ -55,8 +55,8 @@ EditorWindow::EditorWindow(QWidget *parent)
     atualizarListaObjetos();
 
     connect(painelPropriedades, &PainelPropriedades::objetoSelecionado,
-            this, [this](int indice) {
-                indiceSelecionado = indice;
+            this, [this](const QString &nome) {
+                nomeSelecionado = nome;
                 painelPropriedades->definirModoCamera(windowSelecionada());
                 atualizarTextoMatriz();
             });
@@ -131,14 +131,14 @@ void EditorWindow::carregarCenaTeste() {
     carregarModelo(":/modelos/Pikachu OBJ.obj", "Pikachu", 220.0, Ponto3D(0.0, 100.0, 0.0), QColor(255, 220, 0));
 }
 
-bool EditorWindow::carregarModelo(const QString &caminho, const QString &nome, double tamanho,
+QString EditorWindow::carregarModelo(const QString &caminho, const QString &nome, double tamanho,
                                   const Ponto3D &destino, const QColor &cor)
 {
     LeitorOBJ::Malha malha;
     QString erro;
     if (!LeitorOBJ::ler(caminho, malha, erro)) {
         QMessageBox::warning(this, "Erro ao carregar OBJ", erro);
-        return false;
+        return {};
     }
 
     const size_t nVertices = malha.vertices.size();
@@ -149,13 +149,13 @@ bool EditorWindow::carregarModelo(const QString &caminho, const QString &nome, d
     if (!obj.normalizar(tamanho, destino)) {
         QMessageBox::warning(this, "Erro ao carregar OBJ",
                              tr("O modelo não tem dimensões válidas para ser exibido."));
-        return false;
+        return {};
     }
-    displayFile.adicionarObjeto(obj);
+    const Objeto &inserido = displayFile.adicionarObjeto(std::move(obj));
 
     statusBar()->showMessage(QString("%1: %2 vértices, %3 arestas")
-                                 .arg(nome).arg(nVertices).arg(nArestas), 6000);
-    return true;
+                                 .arg(inserido.nome).arg(nVertices).arg(nArestas), 6000);
+    return inserido.nome;
 }
 
 void EditorWindow::abrirOBJ()
@@ -173,21 +173,23 @@ void EditorWindow::abrirOBJ()
                                     QColor(0, 110, 190), QColor(150, 100, 0) };
     const QColor cor = paleta[displayFile.quantidade() % 4];
 
-    if (!carregarModelo(caminho, QFileInfo(caminho).completeBaseName(), tamanho, destino, cor))
+    const QString nome = carregarModelo(caminho, QFileInfo(caminho).completeBaseName(),
+                                       tamanho, destino, cor);
+    if (nome.isEmpty())
         return;
 
     atualizarSCN();
-    atualizarListaObjetos(static_cast<int>(displayFile.quantidade()));
+    atualizarListaObjetos(nome);
 }
 
-void EditorWindow::atualizarListaObjetos(int selecionar)
+void EditorWindow::atualizarListaObjetos(const QString &selecionar)
 {
     QStringList nomes;
-    nomes << "Window";
+    nomes << DisplayFile::nomeJanela();
     for (const auto& obj : displayFile.obterObjetos())
         nomes << obj.nome;
     painelPropriedades->definirObjetos(nomes);
-    if (selecionar >= 0)
+    if (!selecionar.isEmpty())
         painelPropriedades->selecionarObjeto(selecionar);
 }
 

@@ -7,11 +7,12 @@ enum class TipoProjecao { Paralela, Perspectiva };
 
 class Janela {
 private:
-    // Colunas: direita * largura, cima * altura, normal e centro da Window.
+    // Colunas: u * largura, v * altura, n (VPN) e CW (centro da Window).
     Matriz quadro_ = Matriz::escala(700.0, 700.0);
     Matriz orientacao_;
     Matriz orientacaoInversa_;
-    Matriz visao_;
+    Matriz visaoParalela_;
+    Matriz visaoPerspectiva_;
     Matriz scn2D_;
     double largura_ = 700.0;
     double altura_ = 700.0;
@@ -38,11 +39,14 @@ private:
             }
         }
 
-        const Ponto3D cop = orientacao_ * Ponto3D(0.0, 0.0, -d_);
-        visao_ = orientacaoInversa_
-                 * Matriz::translacao(-quadro_(0, 3) - cop.x,
-                                      -quadro_(1, 3) - cop.y,
-                                      -quadro_(2, 3) - cop.z);
+        // O projeto usa CW como VRP. Na perspectiva, COP = VRP - d * VPN.
+        const Ponto3D vrp(quadro_(0, 3), quadro_(1, 3), quadro_(2, 3));
+        const Ponto3D vpn(orientacao_(0, 2), orientacao_(1, 2), orientacao_(2, 2));
+        const Ponto3D cop(vrp.x - d_ * vpn.x, vrp.y - d_ * vpn.y, vrp.z - d_ * vpn.z);
+
+        // Translada a origem de projecao e alinha os eixos u, v, n a X, Y, Z.
+        visaoParalela_ = orientacaoInversa_ * Matriz::translacao(-vrp.x, -vrp.y, -vrp.z);
+        visaoPerspectiva_ = orientacaoInversa_ * Matriz::translacao(-cop.x, -cop.y, -cop.z);
         scn2D_ = Matriz::escala(2.0 / largura_, 2.0 / altura_);
     }
 
@@ -117,7 +121,9 @@ public:
     TipoProjecao projecao() const { return projecao_; }
     double distancia() const { return d_; }
 
-    const Matriz &matrizVisao() const { return visao_; }
+    const Matriz &matrizVisao() const {
+        return projecao_ == TipoProjecao::Paralela ? visaoParalela_ : visaoPerspectiva_;
+    }
     const Matriz &matrizSCN2D() const { return scn2D_; }
 };
 

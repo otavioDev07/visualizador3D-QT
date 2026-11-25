@@ -19,18 +19,14 @@ private:
     DisplayFile displayFile;
     AreaVisualizacao *areaVisualizacao = nullptr;
     PainelPropriedades *painelPropriedades = nullptr;
-    int indiceSelecionado = -1;
+    QString nomeSelecionado;
 
     bool windowSelecionada() const {
-        return indiceSelecionado == 0;
+        return nomeSelecionado == DisplayFile::nomeJanela();
     }
 
     Objeto* objetoSelecionado() {
-        if (indiceSelecionado <= 0)
-            return nullptr;
-
-        return displayFile.obterObjeto(
-            static_cast<size_t>(indiceSelecionado - 1));
+        return displayFile.obterObjeto(nomeSelecionado);
     }
 
     Viewport viewportSolicitada;
@@ -42,10 +38,10 @@ private:
     void aplicarComposicao();
     void carregarCenaTeste();
 
-    bool carregarModelo(const QString &caminho, const QString &nome, double tamanho,
+    QString carregarModelo(const QString &caminho, const QString &nome, double tamanho,
                         const Ponto3D &destino, const QColor &cor);
     void abrirOBJ();
-    void atualizarListaObjetos(int selecionar = -1);
+    void atualizarListaObjetos(const QString &selecionar = {});
 
 public:
     explicit EditorWindow(QWidget *parent = nullptr);

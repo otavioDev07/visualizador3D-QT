@@ -23,7 +23,7 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     listaObjetos->setMinimumHeight(140);
     layout->addWidget(listaObjetos);
 
-    connect(listaObjetos, &QListWidget::currentRowChanged,
+    connect(listaObjetos, &QListWidget::currentTextChanged,
             this, &PainelPropriedades::objetoSelecionado);
 
     // --- Composição ---
@@ -191,9 +191,11 @@ void PainelPropriedades::definirObjetos(const QStringList &nomes)
     listaObjetos->addItems(nomes);
 }
 
-void PainelPropriedades::selecionarObjeto(int indice)
+void PainelPropriedades::selecionarObjeto(const QString &nome)
 {
-    listaObjetos->setCurrentRow(indice);
+    const auto itens = listaObjetos->findItems(nome, Qt::MatchExactly | Qt::MatchCaseSensitive);
+    if (!itens.isEmpty())
+        listaObjetos->setCurrentItem(itens.front());
 }
 
 void PainelPropriedades::mostrarMatriz(const QString &texto)

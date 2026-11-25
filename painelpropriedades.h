@@ -58,7 +58,7 @@ public:
     explicit PainelPropriedades(QWidget *parent = nullptr);
 
     void definirObjetos(const QStringList &nomes);
-    void selecionarObjeto(int indice);
+    void selecionarObjeto(const QString &nome);
     void mostrarMatriz(const QString &texto);
     void definirModoCamera(bool ativo);
     void limparTransformacao();
@@ -67,7 +67,7 @@ public:
     void definirViewport(double xmin, double ymin, double xmax, double ymax);
 
 signals:
-    void objetoSelecionado(int indice);
+    void objetoSelecionado(const QString &nome);
     void transformacaoAlterada();
     void aplicarComposicaoSolicitada();
     void limparComposicaoSolicitada();
