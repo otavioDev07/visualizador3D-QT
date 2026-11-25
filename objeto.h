@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <limits>
 #include "matriz.h"
+#include "clipping.h"
 
 enum class TipoObjeto {
     PONTO,
@@ -24,7 +25,9 @@ struct Objeto {
     std::vector<Ponto3D> vertices;
     std::vector<std::pair<int, int>> arestas;
     std::vector<QPointF> pontosSCN;
+    std::vector<std::pair<QPointF, QPointF>> linhasSCN;
     std::vector<bool> visivel;
+    bool usaClippingVolumetrico = false;
     QColor cor;
 
     Objeto(QString n, TipoObjeto t, const std::vector<QPointF>& pontos2D)
@@ -96,6 +99,8 @@ struct Objeto {
 
     void atualizarSCN(const Matriz& pipeline) {
         pontosSCN.resize(vertices.size());
+        linhasSCN.clear();
+        usaClippingVolumetrico = false;
         visivel.assign(vertices.size(), true);
         for (size_t i = 0; i < vertices.size(); ++i) {
             const Ponto3D p = pipeline * vertices[i];
@@ -108,24 +113,51 @@ struct Objeto {
             p = m * p;
     }
 
-    void atualizarSCNPerspectiva(const Matriz& visao, const Matriz& mper, const Matriz& scn2D) {
-        constexpr double W_MINIMO = 0.001;
-
+    void atualizarSCNPerspectiva(const Matriz& visao, const Matriz& mper, const Matriz& scn2D,
+                                 double larguraJanela, double alturaJanela, double distancia) {
         pontosSCN.resize(vertices.size());
         visivel.resize(vertices.size());
-        const Matriz projecao = mper * visao;
+        linhasSCN.clear();
+        linhasSCN.reserve(arestas.size());
+        usaClippingVolumetrico = true;
+
+        std::vector<Ponto3D> pontosVisao(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i)
+            pontosVisao[i] = visao * vertices[i];
 
         for (size_t i = 0; i < vertices.size(); ++i) {
             double w = 0.0;
-            const Ponto3D p = projecao.aplicarHomogeneo(vertices[i], w);
+            const Ponto3D p = mper.aplicarHomogeneo(pontosVisao[i], w);
 
-            if (w <= W_MINIMO) {          // atrás (ou colado) no olho: não desenha
+            if (!Clipping::Volumetrico::pontoDentro(pontosVisao[i], larguraJanela,
+                                                     alturaJanela, distancia)) {
                 visivel[i] = false;
                 pontosSCN[i] = QPointF();
                 continue;
             }
             visivel[i] = true;
             pontosSCN[i] = scn2D * QPointF(p.x, p.y);
+        }
+
+        // Os extremos gerados pelo recorte podem não ser vértices originais;
+        // por isso as arestas projetadas são guardadas separadamente.
+        for (const auto& aresta : arestas) {
+            if (aresta.first < 0 || aresta.second < 0 ||
+                static_cast<size_t>(aresta.first) >= pontosVisao.size() ||
+                static_cast<size_t>(aresta.second) >= pontosVisao.size())
+                continue;
+
+            Ponto3D a = pontosVisao[static_cast<size_t>(aresta.first)];
+            Ponto3D b = pontosVisao[static_cast<size_t>(aresta.second)];
+            if (!Clipping::Volumetrico::recortarReta(a, b, larguraJanela,
+                                                      alturaJanela, distancia))
+                continue;
+
+            double wa = 0.0, wb = 0.0;
+            const Ponto3D pa = mper.aplicarHomogeneo(a, wa);
+            const Ponto3D pb = mper.aplicarHomogeneo(b, wb);
+            linhasSCN.emplace_back(scn2D * QPointF(pa.x, pa.y),
+                                   scn2D * QPointF(pb.x, pb.y));
         }
     }
 };

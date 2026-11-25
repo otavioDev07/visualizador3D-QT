@@ -43,16 +43,25 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
             painter.setPen(QPen(obj.cor, modelo ? 1 : 2));
 
             QVector<QLineF> linhas;
-            linhas.reserve(static_cast<qsizetype>(obj.arestas.size()));
+            if (obj.usaClippingVolumetrico) {
+                linhas.reserve(static_cast<qsizetype>(obj.linhasSCN.size()));
+                for (const auto& segmento : obj.linhasSCN) {
+                    QPointF a = segmento.first;
+                    QPointF b = segmento.second;
+                    // Mantém o clipping 2D do pipeline após gerar o SCN.
+                    if (Clipping::recortarReta(a, b))
+                        linhas.append(QLineF(vp * a, vp * b));
+                }
+            } else {
+                linhas.reserve(static_cast<qsizetype>(obj.arestas.size()));
+                for (const auto &aresta : obj.arestas) {
+                    if (!obj.visivel[static_cast<size_t>(aresta.first)] ||
+                        !obj.visivel[static_cast<size_t>(aresta.second)]) continue;
+                    QPointF a = obj.pontosSCN[static_cast<size_t>(aresta.first)];
+                    QPointF b = obj.pontosSCN[static_cast<size_t>(aresta.second)];
 
-            for (const auto &aresta : obj.arestas) {
-                if (!obj.visivel[static_cast<size_t>(aresta.first)] ||
-                    !obj.visivel[static_cast<size_t>(aresta.second)]) continue;
-                QPointF a = obj.pontosSCN[static_cast<size_t>(aresta.first)];
-                QPointF b = obj.pontosSCN[static_cast<size_t>(aresta.second)];
-
-                if (Clipping::recortarReta(a, b)){
-                    linhas.append(QLineF(vp * a, vp * b));
+                    if (Clipping::recortarReta(a, b))
+                        linhas.append(QLineF(vp * a, vp * b));
                 }
             }
             painter.drawLines(linhas);
