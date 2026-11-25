@@ -3,13 +3,21 @@
 
 #include <QWidget>
 #include <QStringList>
+#include "matriz.h"
 
 class QListWidget;
 class QDoubleSpinBox;
 class QRadioButton;
-class QCheckBox;
 class QComboBox;
 class QLabel;
+
+struct Transformacao {
+    Ponto3D deslocamento;
+    Ponto3D escala;
+    Ponto3D angulos;
+    Ponto3D pivo;
+    bool usarCentroide;
+};
 
 class PainelPropriedades : public QWidget
 {
@@ -22,14 +30,17 @@ private:
     QDoubleSpinBox *spinSx = nullptr;
     QDoubleSpinBox *spinSy = nullptr;
     QDoubleSpinBox *spinSz = nullptr;
-    QComboBox *comboEixo = nullptr;
-    QDoubleSpinBox *spinAngulo = nullptr;
+    QDoubleSpinBox *spinAnguloX = nullptr;
+    QDoubleSpinBox *spinAnguloY = nullptr;
+    QDoubleSpinBox *spinAnguloZ = nullptr;
     QDoubleSpinBox *spinPx = nullptr;
     QDoubleSpinBox *spinPy = nullptr;
     QDoubleSpinBox *spinPz = nullptr;
     QRadioButton *radioCentroide = nullptr;
     QRadioButton *radioPonto = nullptr;
     QLabel *labelMatriz = nullptr;
+    QLabel *avisoViewport = nullptr;
+    bool modoCamera = false;
 
     // Viewport
     QDoubleSpinBox *spinVxmin = nullptr;
@@ -41,6 +52,7 @@ private:
     QDoubleSpinBox *spinDistancia = nullptr;
 
     void emitirViewport();
+    void atualizarCamposPivo();
 
 public:
     explicit PainelPropriedades(QWidget *parent = nullptr);
@@ -48,15 +60,15 @@ public:
     void definirObjetos(const QStringList &nomes);
     void selecionarObjeto(int indice);
     void mostrarMatriz(const QString &texto);
+    void definirModoCamera(bool ativo);
+    void limparTransformacao();
+    Transformacao transformacao() const;
 
     void definirViewport(double xmin, double ymin, double xmax, double ymax);
 
 signals:
     void objetoSelecionado(int indice);
-    void translacaoSolicitada(double dx, double dy, double dz);
-    void escalaSolicitada(double sx, double sy, double sz);
-    void rotacaoSolicitada(int eixo, double graus, bool usarCentroide, double px, double py, double pz);
-    void modoAcumularAlterado(bool ativo);
+    void transformacaoAlterada();
     void aplicarComposicaoSolicitada();
     void limparComposicaoSolicitada();
     void viewportAlterada(double xmin, double ymin, double xmax, double ymax);

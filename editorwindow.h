@@ -9,6 +9,7 @@
 
 class AreaVisualizacao;
 class PainelPropriedades;
+struct Transformacao;
 
 class EditorWindow : public QMainWindow
 {
@@ -32,13 +33,13 @@ private:
             static_cast<size_t>(indiceSelecionado - 1));
     }
 
-    Viewport viewport;      // viewport em pixels
+    Viewport viewportSolicitada;
+    void atualizarViewport(const QSize &tamanho);
     void atualizarSCN();    // recalcula o SCN de todos os objetos e redesenha
 
-    bool modoAcumular = false;
-    Matriz matrizAcumulada;
     void atualizarTextoMatriz();
-    void executar(const Matriz &m);
+    Matriz comporTransformacao(const Transformacao &t);
+    void aplicarComposicao();
     void carregarCenaTeste();
 
     bool carregarModelo(const QString &caminho, const QString &nome, double tamanho,

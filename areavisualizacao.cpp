@@ -1,11 +1,19 @@
 #include "areavisualizacao.h"
 #include <QPainter>
+#include <QResizeEvent>
 #include <QLineF>
 #include <QVector>
 #include "clipping.h"
 using namespace Qt;
 
-AreaVisualizacao::AreaVisualizacao(QWidget *parent) : QWidget{parent} {}
+AreaVisualizacao::AreaVisualizacao(QWidget *parent) : QWidget{parent} {
+    setMinimumSize(2, 2);
+}
+
+void AreaVisualizacao::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    emit tamanhoAlterado(event->size());
+}
 
 void AreaVisualizacao::paintEvent(QPaintEvent *) {
     QPainter painter(this);
@@ -16,6 +24,7 @@ void AreaVisualizacao::paintEvent(QPaintEvent *) {
     if (!displayFile) return;
 
     painter.save();
+    painter.setClipRect(viewport.retangulo(), Qt::IntersectClip);
 
     // Transformada de viewport: SCN -> pixels (já calculada em Viewport::definir)
     const Matriz &vp = viewport.matriz();
