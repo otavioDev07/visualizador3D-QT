@@ -44,9 +44,21 @@ private:
         const Ponto3D vpn(orientacao_(0, 2), orientacao_(1, 2), orientacao_(2, 2));
         const Ponto3D cop(vrp.x - d_ * vpn.x, vrp.y - d_ * vpn.y, vrp.z - d_ * vpn.z);
 
-        // Translada a origem de projecao e alinha os eixos u, v, n a X, Y, Z.
-        visaoParalela_ = orientacaoInversa_ * Matriz::translacao(-vrp.x, -vrp.y, -vrp.z);
-        visaoPerspectiva_ = orientacaoInversa_ * Matriz::translacao(-cop.x, -cop.y, -cop.z);
+        // Aula 15: Y leva a VPN ao plano YZ, e X a alinha com Z positivo.
+        const double radianosParaGraus = 180.0 / M_PI;
+        const double grausY = -std::atan2(vpn.x, vpn.z) * radianosParaGraus;
+        const double grausX = std::atan2(vpn.y, std::hypot(vpn.x, vpn.z)) * radianosParaGraus;
+        const Matriz alinharVPN = Matriz::rotacao(Eixo::X, grausX)
+                                  * Matriz::rotacao(Eixo::Y, grausY);
+
+        // Com a normal alinhada, resta levar o eixo u da Window a X.
+        const Ponto3D u(orientacao_(0, 0), orientacao_(1, 0), orientacao_(2, 0));
+        const Ponto3D uAlinhado = alinharVPN * u;
+        const double grausZ = -std::atan2(uAlinhado.y, uAlinhado.x) * radianosParaGraus;
+        const Matriz alinharJanela = Matriz::rotacao(Eixo::Z, grausZ) * alinharVPN;
+
+        visaoParalela_ = alinharJanela * Matriz::translacao(-vrp.x, -vrp.y, -vrp.z);
+        visaoPerspectiva_ = alinharJanela * Matriz::translacao(-cop.x, -cop.y, -cop.z);
         scn2D_ = Matriz::escala(2.0 / largura_, 2.0 / altura_);
     }
 
