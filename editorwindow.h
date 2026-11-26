@@ -9,6 +9,7 @@
 
 class AreaVisualizacao;
 class PainelPropriedades;
+struct Transformacao;
 
 class EditorWindow : public QMainWindow
 {
@@ -18,33 +19,29 @@ private:
     DisplayFile displayFile;
     AreaVisualizacao *areaVisualizacao = nullptr;
     PainelPropriedades *painelPropriedades = nullptr;
-    int indiceSelecionado = -1;
+    QString nomeSelecionado;
 
     bool windowSelecionada() const {
-        return indiceSelecionado == 0;
+        return nomeSelecionado == DisplayFile::nomeJanela();
     }
 
     Objeto* objetoSelecionado() {
-        if (indiceSelecionado <= 0)
-            return nullptr;
-
-        return displayFile.obterObjeto(
-            static_cast<size_t>(indiceSelecionado - 1));
+        return displayFile.obterObjeto(nomeSelecionado);
     }
 
-    Viewport viewport;      // viewport em pixels
+    Viewport viewportSolicitada;
+    void atualizarViewport(const QSize &tamanho);
     void atualizarSCN();    // recalcula o SCN de todos os objetos e redesenha
 
-    bool modoAcumular = false;
-    Matriz matrizAcumulada;
     void atualizarTextoMatriz();
-    void executar(const Matriz &m);
+    Matriz comporTransformacao(const Transformacao &t);
+    void aplicarComposicao();
     void carregarCenaTeste();
 
-    bool carregarModelo(const QString &caminho, const QString &nome, double tamanho,
+    QString carregarModelo(const QString &caminho, const QString &nome, double tamanho,
                         const Ponto3D &destino, const QColor &cor);
     void abrirOBJ();
-    void atualizarListaObjetos(int selecionar = -1);
+    void atualizarListaObjetos(const QString &selecionar = {});
 
 public:
     explicit EditorWindow(QWidget *parent = nullptr);

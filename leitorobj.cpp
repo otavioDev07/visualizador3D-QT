@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QStringList>
 #include <QTextStream>
+#include <cmath>
 #include <unordered_set>
 
 namespace {
@@ -36,8 +37,12 @@ bool LeitorOBJ::ler(const QString &caminho, Malha &malha, QString &erro)
 
     while (!entrada.atEnd()) {
         ++numeroLinha;
-        const QString linha = entrada.readLine().simplified();
-        if (linha.isEmpty() || linha.startsWith(QLatin1Char('#')))
+        QString linha = entrada.readLine();
+        const qsizetype comentario = linha.indexOf(QLatin1Char('#'));
+        if (comentario >= 0)
+            linha.truncate(comentario);
+        linha = linha.simplified();
+        if (linha.isEmpty())
             continue;
 
         const QStringList campos = linha.split(QLatin1Char(' '), Qt::SkipEmptyParts);
@@ -50,7 +55,7 @@ bool LeitorOBJ::ler(const QString &caminho, Malha &malha, QString &erro)
             const double x = campos[1].toDouble(&okX);
             const double y = campos[2].toDouble(&okY);
             const double z = campos[3].toDouble(&okZ);
-            if (!(okX && okY && okZ))
+            if (!(okX && okY && okZ && std::isfinite(x) && std::isfinite(y) && std::isfinite(z)))
                 return falha("coordenada de vértice inválida.");
             malha.vertices.emplace_back(x, y, z);
         }

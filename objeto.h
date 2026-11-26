@@ -5,7 +5,6 @@
 #include <QPointF>
 #include <vector>
 #include <QColor>
-#include <vector>
 #include <utility>
 #include <algorithm>
 #include <limits>
@@ -15,6 +14,7 @@
 enum class TipoObjeto {
     PONTO,
     RETA,
+    POLIGONO,
     MODELO
 };
 
@@ -35,7 +35,13 @@ struct Objeto {
         vertices.reserve(pontos2D.size());
         for (const auto& p : pontos2D)
             vertices.emplace_back(p.x(), p.y(), 0.0);
-        if (t != TipoObjeto::PONTO) {
+        if (t == TipoObjeto::POLIGONO && vertices.size() >= 3) {
+            arestas.reserve(vertices.size());
+            for (size_t i = 0; i < vertices.size(); ++i) {
+                const size_t seguinte = (i + 1) % vertices.size();
+                arestas.emplace_back(static_cast<int>(i), static_cast<int>(seguinte));
+            }
+        } else if (t == TipoObjeto::RETA || t == TipoObjeto::MODELO) {
             for (size_t i = 0; i + 1 < vertices.size(); i += 2)
                 arestas.emplace_back(static_cast<int>(i), static_cast<int>(i + 1));
         }
@@ -49,6 +55,7 @@ struct Objeto {
         switch (t) {
         case TipoObjeto::PONTO:  return QColor(Qt::red);
         case TipoObjeto::RETA:   return QColor(Qt::blue);
+        case TipoObjeto::POLIGONO: return QColor(Qt::darkMagenta);
         case TipoObjeto::MODELO: return QColor(Qt::darkGreen);
         }
         return QColor(Qt::black);
@@ -79,22 +86,46 @@ struct Objeto {
         }
     }
 
-    void normalizar(double tamanhoAlvo, const Ponto3D& destino) {
-        if (vertices.empty())
-            return;
+    bool normalizar(double tamanhoAlvo, const Ponto3D& destino) {
+        if (vertices.empty() || !std::isfinite(tamanhoAlvo) || tamanhoAlvo <= 0.0)
+            return false;
 
         Ponto3D mn, mx;
         limites(mn, mx);
+        const auto meio = [](double a, double b) {
+            return std::signbit(a) == std::signbit(b) ? a + (b - a) / 2.0
+                                                      : a / 2.0 + b / 2.0;
+        };
+        const Ponto3D centro(meio(mn.x, mx.x), meio(mn.y, mx.y), meio(mn.z, mx.z));
+        const double raio = std::max({mx.x - centro.x, centro.x - mn.x,
+                                      mx.y - centro.y, centro.y - mn.y,
+                                      mx.z - centro.z, centro.z - mn.z});
+        if (!std::isfinite(raio) || raio <= 0.0)
+            return false;
+
+        // Reduz os valores antes de calcular a extensao total, que pode exceder double.
+        const auto relativo = [&](const Ponto3D &p) {
+            return Ponto3D((p.x - centro.x) / raio, (p.y - centro.y) / raio,
+                           (p.z - centro.z) / raio);
+        };
+        mn = relativo(mn);
+        mx = relativo(mx);
         const double maior = std::max({mx.x - mn.x, mx.y - mn.y, mx.z - mn.z});
-        if (maior <= 0.0)
-            return;
+        const Ponto3D meioRelativo(meio(mn.x, mx.x), meio(mn.y, mx.y), meio(mn.z, mx.z));
 
-        const Ponto3D centro((mn.x + mx.x) / 2.0, (mn.y + mx.y) / 2.0, (mn.z + mx.z) / 2.0);
-        const double f = tamanhoAlvo / maior;
-
-        transformar(Matriz::translacao(destino.x, destino.y, destino.z)
-                    * Matriz::escala(f, f, f)
-                    * Matriz::translacao(-centro.x, -centro.y, -centro.z));
+        std::vector<Ponto3D> normalizados;
+        normalizados.reserve(vertices.size());
+        for (const Ponto3D &vertice : vertices) {
+            const Ponto3D p = relativo(vertice);
+            const Ponto3D q(destino.x + (p.x - meioRelativo.x) / maior * tamanhoAlvo,
+                            destino.y + (p.y - meioRelativo.y) / maior * tamanhoAlvo,
+                            destino.z + (p.z - meioRelativo.z) / maior * tamanhoAlvo);
+            if (!std::isfinite(q.x) || !std::isfinite(q.y) || !std::isfinite(q.z))
+                return false;
+            normalizados.push_back(q);
+        }
+        vertices.swap(normalizados);
+        return true;
     }
 
     void atualizarSCN(const Matriz& pipeline) {

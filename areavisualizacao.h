@@ -25,8 +25,12 @@ public:
     }
     const Viewport &getViewport() const { return viewport; }
 
+signals:
+    void tamanhoAlterado(const QSize &tamanho);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 };
 
 #endif // AREAVISUALIZACAO_H

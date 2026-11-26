@@ -7,7 +7,9 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QRadioButton>
-#include <QCheckBox>
+#include <QSignalBlocker>
+#include <QFontDatabase>
+#include <QHBoxLayout>
 #include <QComboBox>
 
 PainelPropriedades::PainelPropriedades(QWidget *parent)
@@ -21,8 +23,27 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     listaObjetos->setMinimumHeight(140);
     layout->addWidget(listaObjetos);
 
-    connect(listaObjetos, &QListWidget::currentRowChanged,
+    connect(listaObjetos, &QListWidget::currentTextChanged,
             this, &PainelPropriedades::objetoSelecionado);
+
+    // --- Composição ---
+    QGroupBox *grupoComp = new QGroupBox("Composição de matrizes (4x4)", this);
+    QVBoxLayout *vComp = new QVBoxLayout(grupoComp);
+
+    labelMatriz = new QLabel(grupoComp);
+    labelMatriz->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    vComp->addWidget(labelMatriz);
+
+    QHBoxLayout *botoes = new QHBoxLayout;
+    QPushButton *btnAplicar = new QPushButton("Aplicar", grupoComp);
+    QPushButton *btnLimpar = new QPushButton("Limpar", grupoComp);
+    botoes->addWidget(btnAplicar);
+    botoes->addWidget(btnLimpar);
+    vComp->addLayout(botoes);
+    layout->addWidget(grupoComp);
+
+    connect(btnAplicar, &QPushButton::clicked, this, &PainelPropriedades::aplicarComposicaoSolicitada);
+    connect(btnLimpar, &QPushButton::clicked, this, &PainelPropriedades::limparComposicaoSolicitada);
 
     // --- Translação ---
     QGroupBox *grupoTrans = new QGroupBox("Translação", this);
@@ -40,13 +61,7 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     formTrans->addRow("dy:", spinDy);
     formTrans->addRow("dz:", spinDz);
 
-    QPushButton *btnTransladar = new QPushButton("Transladar", grupoTrans);
-    formTrans->addRow(btnTransladar);
     layout->addWidget(grupoTrans);
-
-    connect(btnTransladar, &QPushButton::clicked, this, [this]() {
-        emit translacaoSolicitada(spinDx->value(), spinDy->value(), spinDz->value());
-    });
 
     // --- Escalar ---
     QGroupBox *grupoEscala = new QGroupBox("Escala (no centroide)", this);
@@ -65,31 +80,23 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     formEscala->addRow("sy:", spinSy);
     formEscala->addRow("sz:", spinSz);
 
-    QPushButton *btnEscalar = new QPushButton("Escalar", grupoEscala);
-    formEscala->addRow(btnEscalar);
     layout->addWidget(grupoEscala);
-
-    connect(btnEscalar, &QPushButton::clicked, this, [this]() {
-        emit escalaSolicitada(spinSx->value(), spinSy->value(), spinSz->value());
-    });
 
     // --- Rotação ---
     QGroupBox *grupoRot = new QGroupBox("Rotação", this);
     QFormLayout *formRot = new QFormLayout(grupoRot);
 
-    comboEixo = new QComboBox(grupoRot);
-    comboEixo->addItem("X (horizontal)");     // índice 0 = Eixo::X
-    comboEixo->addItem("Y (vertical)");       // índice 1 = Eixo::Y
-    comboEixo->addItem("Z (profundidade)");   // índice 2 = Eixo::Z
-    comboEixo->setCurrentIndex(2);
-    formRot->addRow("Eixo:", comboEixo);
-
-    spinAngulo = new QDoubleSpinBox(grupoRot);
-    spinAngulo->setRange(-360.0, 360.0);
-    spinAngulo->setDecimals(1);
-    spinAngulo->setValue(0.0);
-    spinAngulo->setSuffix("°");
-    formRot->addRow("Ângulo:", spinAngulo);
+    spinAnguloX = new QDoubleSpinBox(grupoRot);
+    spinAnguloY = new QDoubleSpinBox(grupoRot);
+    spinAnguloZ = new QDoubleSpinBox(grupoRot);
+    for (QDoubleSpinBox *s : {spinAnguloX, spinAnguloY, spinAnguloZ}) {
+        s->setRange(-360.0, 360.0);
+        s->setDecimals(1);
+        s->setSuffix("°");
+    }
+    formRot->addRow("Ângulo X:", spinAnguloX);
+    formRot->addRow("Ângulo Y:", spinAnguloY);
+    formRot->addRow("Ângulo Z:", spinAnguloZ);
 
     radioCentroide = new QRadioButton("Em torno do centroide", grupoRot);
     radioPonto = new QRadioButton("Em torno de um ponto", grupoRot);
@@ -110,23 +117,16 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
     formRot->addRow("y:", spinPy);
     formRot->addRow("z:", spinPz);
 
-    // Habilita x/y/z apenas quando "ponto" estiver marcado
-    connect(radioPonto, &QRadioButton::toggled, this, [this](bool marcado) {
-        spinPx->setEnabled(marcado);
-        spinPy->setEnabled(marcado);
-        spinPz->setEnabled(marcado);
-    });
+    connect(radioPonto, &QRadioButton::toggled,
+            this, &PainelPropriedades::atualizarCamposPivo);
 
-    QPushButton *btnRotacionar = new QPushButton("Rotacionar", grupoRot);
-    formRot->addRow(btnRotacionar);
     layout->addWidget(grupoRot);
 
-    connect(btnRotacionar, &QPushButton::clicked, this, [this]() {
-        emit rotacaoSolicitada(comboEixo->currentIndex(),
-                               spinAngulo->value(),
-                               radioCentroide->isChecked(),
-                               spinPx->value(), spinPy->value(), spinPz->value());
-    });
+    for (QDoubleSpinBox *s : {spinDx, spinDy, spinDz, spinSx, spinSy, spinSz,
+                              spinAnguloX, spinAnguloY, spinAnguloZ, spinPx, spinPy, spinPz}) {
+        connect(s, &QDoubleSpinBox::valueChanged, this, &PainelPropriedades::transformacaoAlterada);
+    }
+    connect(radioPonto, &QRadioButton::toggled, this, &PainelPropriedades::transformacaoAlterada);
 
     // --- Viewport ---
     QGroupBox *grupoVp = new QGroupBox("Viewport (pixels)", this);
@@ -140,36 +140,21 @@ PainelPropriedades::PainelPropriedades(QWidget *parent)
         s->setRange(0.0, 10000.0);
         s->setDecimals(0);
         s->setSingleStep(10.0);
+        s->setKeyboardTracking(false);
     }
     formVp->addRow("xmin:", spinVxmin);
     formVp->addRow("ymin:", spinVymin);
     formVp->addRow("xmax:", spinVxmax);
     formVp->addRow("ymax:", spinVymax);
+    avisoViewport = new QLabel(tr("Os limites máximos devem ser maiores que os mínimos. "
+                                   "O desenho mantém a última viewport válida."), grupoVp);
+    avisoViewport->setWordWrap(true);
+    avisoViewport->hide();
+    formVp->addRow(avisoViewport);
     layout->addWidget(grupoVp);
 
     for (QDoubleSpinBox *s : {spinVxmin, spinVymin, spinVxmax, spinVymax})
         connect(s, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this]() { emitirViewport(); });
-
-    // --- Composição ---
-    QGroupBox *grupoComp = new QGroupBox("Composição de matrizes (4x4)", this);
-    QVBoxLayout *vComp = new QVBoxLayout(grupoComp);
-
-    QCheckBox *chkAcumular = new QCheckBox("Acumular (não aplica na hora)", grupoComp);
-    vComp->addWidget(chkAcumular);
-
-    QPushButton *btnAplicar = new QPushButton("Aplicar composição", grupoComp);
-    QPushButton *btnLimpar = new QPushButton("Limpar", grupoComp);
-    vComp->addWidget(btnAplicar);
-    vComp->addWidget(btnLimpar);
-
-    labelMatriz = new QLabel("Matriz: identidade", grupoComp);
-    labelMatriz->setStyleSheet("font-family: monospace;");
-    vComp->addWidget(labelMatriz);
-    layout->addWidget(grupoComp);
-
-    connect(chkAcumular, &QCheckBox::toggled, this, &PainelPropriedades::modoAcumularAlterado);
-    connect(btnAplicar, &QPushButton::clicked, this, &PainelPropriedades::aplicarComposicaoSolicitada);
-    connect(btnLimpar, &QPushButton::clicked, this, &PainelPropriedades::limparComposicaoSolicitada);
 
     // Projeção
     QGroupBox *grupoProj = new QGroupBox("Projeção", this);
@@ -206,9 +191,11 @@ void PainelPropriedades::definirObjetos(const QStringList &nomes)
     listaObjetos->addItems(nomes);
 }
 
-void PainelPropriedades::selecionarObjeto(int indice)
+void PainelPropriedades::selecionarObjeto(const QString &nome)
 {
-    listaObjetos->setCurrentRow(indice);
+    const auto itens = listaObjetos->findItems(nome, Qt::MatchExactly | Qt::MatchCaseSensitive);
+    if (!itens.isEmpty())
+        listaObjetos->setCurrentItem(itens.front());
 }
 
 void PainelPropriedades::mostrarMatriz(const QString &texto)
@@ -216,10 +203,58 @@ void PainelPropriedades::mostrarMatriz(const QString &texto)
     labelMatriz->setText(texto);
 }
 
+void PainelPropriedades::definirModoCamera(bool ativo)
+{
+    modoCamera = ativo;
+    spinDz->setEnabled(!ativo);
+    spinSz->setEnabled(!ativo);
+    radioCentroide->setText(ativo ? tr("Em torno do centro da câmera")
+                                  : tr("Em torno do centroide"));
+    radioPonto->setText(ativo ? tr("Pivô XY para a rotação em Z")
+                              : tr("Em torno de um ponto"));
+    atualizarCamposPivo();
+}
+
+void PainelPropriedades::atualizarCamposPivo()
+{
+    const bool usarPonto = radioPonto->isChecked();
+    spinPx->setEnabled(usarPonto);
+    spinPy->setEnabled(usarPonto);
+    spinPz->setEnabled(usarPonto && !modoCamera);
+}
+
+Transformacao PainelPropriedades::transformacao() const
+{
+    return {
+        {spinDx->value(), spinDy->value(), spinDz->value()},
+        {spinSx->value(), spinSy->value(), spinSz->value()},
+        {spinAnguloX->value(), spinAnguloY->value(), spinAnguloZ->value()},
+        {spinPx->value(), spinPy->value(), spinPz->value()},
+        radioCentroide->isChecked()
+    };
+}
+
+void PainelPropriedades::limparTransformacao()
+{
+    for (QDoubleSpinBox *s : {spinDx, spinDy, spinDz, spinAnguloX, spinAnguloY, spinAnguloZ}) {
+        const QSignalBlocker blocker(s);
+        s->setValue(0.0);
+    }
+    for (QDoubleSpinBox *s : {spinSx, spinSy, spinSz}) {
+        const QSignalBlocker blocker(s);
+        s->setValue(1.0);
+    }
+    emit transformacaoAlterada();
+}
+
 void PainelPropriedades::emitirViewport()
 {
-    emit viewportAlterada(spinVxmin->value(), spinVymin->value(),
-                          spinVxmax->value(), spinVymax->value());
+    const double xmin = spinVxmin->value(), ymin = spinVymin->value();
+    const double xmax = spinVxmax->value(), ymax = spinVymax->value();
+    const bool valida = xmax > xmin && ymax > ymin;
+    avisoViewport->setVisible(!valida);
+    if (valida)
+        emit viewportAlterada(xmin, ymin, xmax, ymax);
 }
 
 void PainelPropriedades::definirViewport(double xmin, double ymin, double xmax, double ymax)
@@ -231,4 +266,5 @@ void PainelPropriedades::definirViewport(double xmin, double ymin, double xmax, 
     spinVxmax->setValue(xmax);
     spinVymax->setValue(ymax);
     for (QDoubleSpinBox *s : spins) s->blockSignals(false);
+    avisoViewport->hide();
 }

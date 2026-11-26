@@ -125,16 +125,15 @@ inline bool recortarReta(Ponto3D& a, Ponto3D& b,double largura, double altura, d
     for (int plano = 0; plano < 5; ++plano) {
         const double fa = valorPlano(a, plano);
         const double fb = valorPlano(b, plano);
-        const double delta = fb - fa;
-
-        if (std::abs(delta) < 1e-12) {
-            if (fa < 0.0)
-                return false;
+        const bool aFora = fa < 0.0;
+        const bool bFora = fb < 0.0;
+        if (aFora && bFora)
+            return false;
+        if (!aFora && !bFora)
             continue;
-        }
 
-        const double t = -fa / delta;
-        if (delta > 0.0)
+        const double t = fa / (fa - fb);
+        if (aFora)
             inicio = std::max(inicio, t);
         else
             fim = std::min(fim, t);
@@ -148,11 +147,9 @@ inline bool recortarReta(Ponto3D& a, Ponto3D& b,double largura, double altura, d
     a = Ponto3D(originalA.x + inicio * direcao.x, originalA.y + inicio * direcao.y, originalA.z + inicio * direcao.z);
     b = Ponto3D(originalA.x + fim * direcao.x, originalA.y + fim * direcao.y, originalA.z + fim * direcao.z);
 
-    // Uma interseção exatamente no plano próximo pode ficar alguns ulps abaixo
-    // de Z_MINIMO; fixa esse erro de arredondamento antes da projeção.
-    constexpr double TOLERANCIA = 1e-10;
-    if (std::abs(a.z - Z_MINIMO) < TOLERANCIA) a.z = Z_MINIMO;
-    if (std::abs(b.z - Z_MINIMO) < TOLERANCIA) b.z = Z_MINIMO;
+    // Protege a divisão perspectiva contra arredondamento na interseção.
+    a.z = std::max(a.z, Z_MINIMO);
+    b.z = std::max(b.z, Z_MINIMO);
     return true;
 }
 

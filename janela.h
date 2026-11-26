@@ -1,81 +1,123 @@
 #ifndef JANELA_H
 #define JANELA_H
 
-#include <QPointF>
-#include <cmath>
 #include "matriz.h"
 
 enum class TipoProjecao { Paralela, Perspectiva };
 
 class Janela {
 private:
-    QPointF centro_ {0.0, 0.0};
+    // Colunas: u * largura, v * altura, n (VPN) e CW (centro da Window).
+    Matriz quadro_ = Matriz::escala(700.0, 700.0);
+    Matriz orientacao_;
+    Matriz orientacaoInversa_;
+    Matriz visaoParalela_;
+    Matriz visaoPerspectiva_;
+    Matriz scn2D_;
     double largura_ = 700.0;
-    double altura_  = 700.0;
-    double angulo_  = 0.0;
+    double altura_ = 700.0;
 
     TipoProjecao projecao_ = TipoProjecao::Paralela;
-    Ponto3D vpn_ {0.0, 0.0, 1.0};   // View Plane Normal
-    double d_ = 800.0;              // distância do COP até o plano de projeção
+    double d_ = 800.0;
 
-    Matriz scn_;
-    Matriz visao_;
-    Matriz scn2D_;
+    static Ponto3D produtoVetorial(const Ponto3D &a, const Ponto3D &b) {
+        return Ponto3D(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+    }
+
+    double comprimentoEixo(int eixo) const {
+        return std::hypot(quadro_(0, eixo), quadro_(1, eixo), quadro_(2, eixo));
+    }
 
     void recalcular() {
-        scn_ = Matriz::escala(2.0 / largura_, 2.0 / altura_)
-               * Matriz::rotacao(-angulo_)
-               * Matriz::translacao(-centro_.x(), -centro_.y());
+        largura_ = comprimentoEixo(0);
+        altura_ = comprimentoEixo(1);
+        const double comprimentos[] = {largura_, altura_, comprimentoEixo(2)};
+        for (int linha = 0; linha < 3; ++linha) {
+            for (int coluna = 0; coluna < 3; ++coluna) {
+                orientacao_(linha, coluna) = quadro_(linha, coluna) / comprimentos[coluna];
+                orientacaoInversa_(coluna, linha) = orientacao_(linha, coluna);
+            }
+        }
 
-        // VPN normalizado
-        const double len = std::sqrt(vpn_.x*vpn_.x + vpn_.y*vpn_.y + vpn_.z*vpn_.z);
-        const double vx = vpn_.x / len, vy = vpn_.y / len, vz = vpn_.z / len;
+        // O projeto usa CW como VRP. Na perspectiva, COP = VRP - d * VPN.
+        const Ponto3D vrp(quadro_(0, 3), quadro_(1, 3), quadro_(2, 3));
+        const Ponto3D vpn(orientacao_(0, 2), orientacao_(1, 2), orientacao_(2, 2));
+        const Ponto3D cop(vrp.x - d_ * vpn.x, vrp.y - d_ * vpn.y, vrp.z - d_ * vpn.z);
 
-        const Ponto3D cw(centro_.x(), centro_.y(), 0.0);
-        const Ponto3D cop(cw.x - d_ * vx, cw.y - d_ * vy, cw.z - d_ * vz);
+        // Aula 15: Y leva a VPN ao plano YZ, e X a alinha com Z positivo.
+        const double radianosParaGraus = 180.0 / M_PI;
+        const double grausY = -std::atan2(vpn.x, vpn.z) * radianosParaGraus;
+        const double grausX = std::atan2(vpn.y, std::hypot(vpn.x, vpn.z)) * radianosParaGraus;
+        const Matriz alinharVPN = Matriz::rotacao(Eixo::X, grausX)
+                                  * Matriz::rotacao(Eixo::Y, grausY);
 
-        // Angulos do VPN em torno de Y e de X
-        const double r = std::sqrt(vx*vx + vz*vz);
-        const double grausY = -std::atan2(vx, vz) * 180.0 / M_PI;
-        const double grausX =  std::atan2(vy, r)  * 180.0 / M_PI;
+        // Com a normal alinhada, resta levar o eixo u da Window a X.
+        const Ponto3D u(orientacao_(0, 0), orientacao_(1, 0), orientacao_(2, 0));
+        const Ponto3D uAlinhado = alinharVPN * u;
+        const double grausZ = -std::atan2(uAlinhado.y, uAlinhado.x) * radianosParaGraus;
+        const Matriz alinharJanela = Matriz::rotacao(Eixo::Z, grausZ) * alinharVPN;
 
-        visao_ = Matriz::rotacao(Eixo::X, grausX)
-                 * Matriz::rotacao(Eixo::Y, grausY)
-                 * Matriz::translacao(-cop.x, -cop.y, -cop.z);
-
-        scn2D_ = Matriz::escala(2.0 / largura_, 2.0 / altura_)
-                 * Matriz::rotacao(-angulo_);
+        visaoParalela_ = alinharJanela * Matriz::translacao(-vrp.x, -vrp.y, -vrp.z);
+        visaoPerspectiva_ = alinharJanela * Matriz::translacao(-cop.x, -cop.y, -cop.z);
+        scn2D_ = Matriz::escala(2.0 / largura_, 2.0 / altura_);
     }
 
 public:
     Janela() { recalcular(); }
 
-    void definir(const QPointF &centro, double largura, double altura, double angulo) {
-        centro_ = centro;
-        largura_ = largura;
-        altura_ = altura;
-        angulo_ = angulo;
-        recalcular();
+    Matriz comporTransformacao(const Ponto3D &deslocamento, const Ponto3D &escala,
+                               const Ponto3D &angulos, const QPointF &pivo) const {
+        const QPointF centroDeslocado = centro() + QPointF(deslocamento.x, deslocamento.y);
+        const QPointF novoCentro = Matriz::rotacaoEmTorno(angulos.z, pivo) * centroDeslocado;
+
+        // X e Y inclinam nos eixos de mundo. Z gira em torno da normal da camera.
+        const Matriz orientacaoNova = Matriz::rotacao(Eixo::Y, angulos.y)
+                                      * Matriz::rotacao(Eixo::X, angulos.x)
+                                      * orientacao_
+                                      * Matriz::rotacao(Eixo::Z, angulos.z);
+
+        // Expressa o zoom nos eixos atuais da camera, inclusive apos girar.
+        return Matriz::translacao(novoCentro.x(), novoCentro.y())
+               * orientacaoNova
+               * Matriz::escala(escala.x, escala.y)
+               * orientacaoInversa_
+               * Matriz::translacao(-quadro_(0, 3), -quadro_(1, 3));
     }
 
-    void transladar(double dx, double dy) {
-        centro_ += QPointF(dx, dy);
+    bool aplicarComposicao(const Matriz &composta) {
+        Matriz novoQuadro = composta * quadro_;
+        const double largura = std::hypot(novoQuadro(0, 0), novoQuadro(1, 0), novoQuadro(2, 0));
+        const double altura = std::hypot(novoQuadro(0, 1), novoQuadro(1, 1), novoQuadro(2, 1));
+        if (largura <= 0.0 || altura <= 0.0 || !std::isfinite(largura) || !std::isfinite(altura)
+            || !std::isfinite(2.0 / largura) || !std::isfinite(2.0 / altura)
+            || !std::isfinite(novoQuadro(0, 3)) || !std::isfinite(novoQuadro(1, 3))
+            || !std::isfinite(novoQuadro(2, 3)))
+            return false;
+
+        const Ponto3D direita(novoQuadro(0, 0) / largura, novoQuadro(1, 0) / largura,
+                             novoQuadro(2, 0) / largura);
+        const Ponto3D cima(novoQuadro(0, 1) / altura, novoQuadro(1, 1) / altura,
+                          novoQuadro(2, 1) / altura);
+
+        // Reconstroi uma base ortonormal antes de usar a transposta como inversa.
+        Ponto3D normal = produtoVetorial(direita, cima);
+        const double comprimento = std::hypot(normal.x, normal.y, normal.z);
+        if (!(comprimento > 0.0) || !std::isfinite(comprimento))
+            return false;
+        normal = Ponto3D(normal.x / comprimento, normal.y / comprimento, normal.z / comprimento);
+        const Ponto3D cimaOrtonormal = produtoVetorial(normal, direita);
+
+        novoQuadro(0, 1) = cimaOrtonormal.x * altura;
+        novoQuadro(1, 1) = cimaOrtonormal.y * altura;
+        novoQuadro(2, 1) = cimaOrtonormal.z * altura;
+        novoQuadro(0, 2) = normal.x;
+        novoQuadro(1, 2) = normal.y;
+        novoQuadro(2, 2) = normal.z;
+        quadro_ = novoQuadro;
         recalcular();
+        return true;
     }
 
-    void escalar(double sx, double sy) {
-        largura_ *= sx;
-        altura_ *= sy;
-        recalcular();
-    }
-
-    void rotacionar(double graus, const QPointF& pivo) {
-        centro_ = Matriz::rotacaoEmTorno(graus, pivo) * centro_;
-        angulo_ += graus;
-        recalcular();
-    }
-
-    // Configuração da câmera
     void definirProjecao(TipoProjecao p) { projecao_ = p; }
 
     void definirDistancia(double d) {
@@ -84,28 +126,16 @@ public:
         recalcular();
     }
 
-    void definirVPN(const Ponto3D &v) {
-        if (std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z) < 1e-9) return;
-        vpn_ = v;
-        recalcular();
-    }
-
-    void rotacionar3D(Eixo eixo, double graus) {
-        vpn_ = Matriz::rotacao(eixo, graus) * vpn_;
-        recalcular();
-    }
-
-    QPointF centro() const { return centro_; }
+    QPointF centro() const { return QPointF(quadro_(0, 3), quadro_(1, 3)); }
     double largura() const { return largura_; }
     double altura() const { return altura_; }
-    double angulo() const { return angulo_; }
 
     TipoProjecao projecao() const { return projecao_; }
     double distancia() const { return d_; }
-    Ponto3D vpn() const { return vpn_; }
 
-    const Matriz &matrizSCN() const { return scn_; }
-    const Matriz &matrizVisao() const { return visao_; }
+    const Matriz &matrizVisao() const {
+        return projecao_ == TipoProjecao::Paralela ? visaoParalela_ : visaoPerspectiva_;
+    }
     const Matriz &matrizSCN2D() const { return scn2D_; }
 };
 

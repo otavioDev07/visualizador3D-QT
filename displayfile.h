@@ -3,21 +3,31 @@
 
 #include "objeto.h"
 #include "janela.h"
-#include <vector>
+#include <algorithm>
+#include <list>
+#include <utility>
 
 class DisplayFile {
 private:
-    std::vector<Objeto> objetos;
+    std::list<Objeto> objetos;
     Janela janela;
 
 public:
     DisplayFile() = default;
 
-    void adicionarObjeto(const Objeto& obj) {
-        objetos.push_back(obj);
+    static QString nomeJanela() { return QStringLiteral("Window"); }
+
+    const Objeto& adicionarObjeto(Objeto obj) {
+        const QString base = obj.nome.trimmed().isEmpty() ? QStringLiteral("Objeto") : obj.nome;
+        obj.nome = base;
+        for (int sufixo = 2; obj.nome == nomeJanela() || obterObjeto(obj.nome); ++sufixo)
+            obj.nome = QStringLiteral("%1 (%2)").arg(base).arg(sufixo);
+
+        objetos.push_back(std::move(obj));
+        return objetos.back();
     }
 
-    const std::vector<Objeto>& obterObjetos() const {
+    const std::list<Objeto>& obterObjetos() const {
         return objetos;
     }
 
@@ -26,6 +36,8 @@ public:
     }
 
     void atualizarSCN(const Janela& j) {
+        // Mundo -> coordenadas da camera -> projecao -> SCN.
+        // Em perspectiva, o recorte volumetrico precede a divisao homogenea.
         if (j.projecao() == TipoProjecao::Perspectiva) {
             const Matriz mper = Matriz::perspectiva(j.distancia());
             for (auto& obj : objetos)
@@ -38,9 +50,11 @@ public:
         }
     }
 
-    Objeto* obterObjeto(size_t indice) {
-        if (indice >= objetos.size()) return nullptr;
-        return &objetos[indice];
+    Objeto* obterObjeto(const QString &nome) {
+        const auto encontrado = std::find_if(objetos.begin(), objetos.end(), [&](const Objeto &obj) {
+            return obj.nome == nome;
+        });
+        return encontrado == objetos.end() ? nullptr : &*encontrado;
     }
 
     Janela& obterJanela() {
