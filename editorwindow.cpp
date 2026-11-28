@@ -25,7 +25,6 @@ EditorWindow::EditorWindow(QWidget *parent)
     painelPropriedades = new PainelPropriedades(this);
 
     layout->addWidget(areaVisualizacao, 3);
-    // O painel ficou alto: coloca-o numa área com rolagem
     QScrollArea *scroll = new QScrollArea(this);
     scroll->setWidget(painelPropriedades);
     scroll->setWidgetResizable(true);

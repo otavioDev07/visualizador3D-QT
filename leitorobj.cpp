@@ -1,4 +1,3 @@
-// aqui mudou (1): arquivo NOVO, criado inteiro nesta entrega
 #include "leitorobj.h"
 #include <QFile>
 #include <QStringList>
