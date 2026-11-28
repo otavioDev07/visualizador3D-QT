@@ -157,15 +157,17 @@ struct Objeto {
             pontosVisao[i] = visao * vertices[i];
 
         for (size_t i = 0; i < vertices.size(); ++i) {
-            double w = 0.0;
-            const Ponto3D p = mper.aplicarHomogeneo(pontosVisao[i], w);
-
             if (!Clipping::Volumetrico::pontoDentro(pontosVisao[i], larguraJanela,
                                                      alturaJanela, distancia)) {
                 visivel[i] = false;
                 pontosSCN[i] = QPointF();
                 continue;
             }
+
+            // So projeta um vertice que ja foi aceito pelo volume de visao.
+            // Isso impede a divisao por z nulo ou negativo.
+            double w = 0.0;
+            const Ponto3D p = mper.aplicarHomogeneo(pontosVisao[i], w);
             visivel[i] = true;
             pontosSCN[i] = scn2D * QPointF(p.x, p.y);
         }
