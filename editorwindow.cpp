@@ -128,6 +128,8 @@ void EditorWindow::carregarCenaTeste() {
     carregarModelo(":/modelos/alien_animal.obj", "Alien Animal", 280.0,
                    Ponto3D(-210.0, 243.0, 0.0), QColor(120, 40, 160));
     carregarModelo(":/modelos/Pikachu OBJ.obj", "Pikachu", 220.0, Ponto3D(0.0, 100.0, 0.0), QColor(255, 220, 0));
+    carregarModelo(":/modelos/cubo.obj", "Cubo", 160.0,
+                   Ponto3D(0.0, -80.0, 0.0), QColor(0, 170, 220));
 }
 
 QString EditorWindow::carregarModelo(const QString &caminho, const QString &nome, double tamanho,
